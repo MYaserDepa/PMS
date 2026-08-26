@@ -1,1 +1,10 @@
 .env
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.browser-libs/
+*.tsbuildinfo
+.env.*
+!.env.example

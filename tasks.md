@@ -9,15 +9,16 @@
 - Product scope: exactly five form types and the Employee to Line Manager workflow described in the PRD.
 - Database changes must be delivered and exercised as migrations. Do not alter database state manually.
 - A task stays unchecked until its acceptance criteria and listed tests pass. Important workflows must also pass in a real browser.
+- Controlled Oracle identities exist only as injected automated-test data. The running application always uses the configured live endpoints and accepts any eligible Oracle employee number.
 
 ## Delivery rules
 
-- [ ] Keep the PRD decision tree, permissions, phase rules, rating rules, evidence rules, and exclusions intact.
-- [ ] Keep the Oracle bearer token on the server. Never expose it in frontend code, browser requests, logs, fixtures, or committed files.
-- [ ] Enforce business rules in the backend. Client-side validation may improve feedback but cannot be the only enforcement.
-- [ ] Use transactions for generation and workflow transitions where practical.
-- [ ] Do not add notifications, dashboards, SSO, deployment work, advanced reporting, workflow configuration, reassignment, advanced audit, file uploads, search infrastructure, queues, retries, monitoring, multi-year browsing, or other excluded features.
-- [ ] Record implementation discoveries or PRD clarifications in this file before changing scope.
+- [x] Keep the PRD decision tree, permissions, phase rules, rating rules, evidence rules, and exclusions intact.
+- [x] Keep the Oracle bearer token on the server. Never expose it in frontend code, browser requests, logs, fixtures, or committed files.
+- [x] Enforce business rules in the backend. Client-side validation may improve feedback but cannot be the only enforcement.
+- [x] Use transactions for generation and workflow transitions where practical.
+- [x] Do not add notifications, dashboards, SSO, deployment work, advanced reporting, workflow configuration, reassignment, advanced audit, file uploads, search infrastructure, queues, retries, monitoring, multi-year browsing, or other excluded features.
+- [x] Record implementation discoveries or PRD clarifications in this file before changing scope.
 
 ## Test levels used below
 
@@ -33,7 +34,7 @@ Goal: establish a local development structure that can support the POC without a
 
 ### M0-T1: Create the application workspace
 
-- [ ] Create separate `frontend` and `backend` TypeScript applications with shared root scripts for local development, build, lint, type-check, and test.
+- [x] Create separate `frontend` and `backend` TypeScript applications with shared root scripts for local development, build, lint, type-check, and test.
 - Dependencies: none.
 - Acceptance criteria:
   - The frontend is React and the backend is Node.js.
@@ -47,8 +48,8 @@ Goal: establish a local development structure that can support the POC without a
 
 ### M0-T2: Add runtime configuration and secret handling
 
-- [ ] Define validated backend configuration for PostgreSQL, the Oracle employee URL, Department Head URL, employer mapping URL, `ORACLE_BEARER_TOKEN`, HR Admin employee `12245`, and IT System Admin employee `21975`.
-- [ ] Define frontend configuration only for non-secret values such as the REST base URL.
+- [x] Define validated backend configuration for PostgreSQL, the Oracle employee URL, Department Head URL, employer mapping URL, `ORACLE_BEARER_TOKEN`, HR Admin employee `12245`, and IT System Admin employee `21975`.
+- [x] Define frontend configuration only for non-secret values such as the REST base URL.
 - Dependencies: M0-T1.
 - Acceptance criteria:
   - Startup fails with a clear server-side message when required configuration is absent or malformed.
@@ -61,8 +62,8 @@ Goal: establish a local development structure that can support the POC without a
 
 ### M0-T3: Establish the test harness
 
-- [ ] Configure backend unit and API integration tests, frontend component tests, PostgreSQL database integration tests, and browser automation.
-- [ ] Add deterministic Oracle response fixtures at the backend integration boundary.
+- [x] Configure backend unit and API integration tests, frontend component tests, PostgreSQL database integration tests, and browser automation.
+- [x] Add deterministic Oracle response fixtures at the backend integration boundary.
 - Dependencies: M0-T1.
 - Acceptance criteria:
   - Each test level has one passing smoke test and one documented command.
@@ -74,8 +75,8 @@ Goal: establish a local development structure that can support the POC without a
 
 ### Milestone 0 gate
 
-- [ ] Builds, type checks, lints, smoke tests, and the browser connectivity check pass.
-- [ ] No product behavior beyond the PRD foundation has been added.
+- [x] Builds, type checks, lints, smoke tests, and the browser connectivity check pass.
+- [x] No product behavior beyond the PRD foundation has been added.
 
 ## Milestone 1: database model and seeded 2027 configuration
 
@@ -83,7 +84,7 @@ Goal: create the relational base for one 2027 cycle, five fixed form types, per-
 
 ### M1-T1: Create the initial database migration
 
-- [ ] Add migrations for `PerformanceCycle`, `EmployeeSnapshot`, `RoleCategoryMapping`, `StrategyReference`, `Scorecard`, `ScorecardLine`, `AdminStandard`, per-scorecard phase state, `WorkflowStep`, and `WorkflowHistory`.
+- [x] Add migrations for `PerformanceCycle`, `EmployeeSnapshot`, `RoleCategoryMapping`, `StrategyReference`, `Scorecard`, `ScorecardLine`, `AdminStandard`, per-scorecard phase state, `WorkflowStep`, and `WorkflowHistory`.
 - Dependencies: M0-T1, M0-T2.
 - Acceptance criteria:
   - The schema can represent every field listed in PRD sections 41 and 45.
@@ -100,7 +101,7 @@ Goal: create the relational base for one 2027 cycle, five fixed form types, per-
 
 ### M1-T2: Seed fixed POC configuration through migrations or seed scripts
 
-- [ ] Seed the 2027 cycle, five form definitions, rating labels, Group strategy ambitions and representative linked strategy references, Administrative / Support standards and starting weights, and any explicitly chosen demo RoleCategory mappings.
+- [x] Seed the 2027 cycle, five form definitions, rating labels, Group strategy ambitions and representative linked strategy references, Administrative / Support standards and starting weights, and any explicitly chosen demo RoleCategory mappings.
 - Dependencies: M1-T1.
 - Acceptance criteria:
   - Exactly one active `PMS 2027` cycle exists with `GoalSetting` as its initial phase.
@@ -114,7 +115,7 @@ Goal: create the relational base for one 2027 cycle, five fixed form types, per-
 
 ### M1-T3: Add transactional persistence services
 
-- [ ] Implement repositories or equivalent data access for cycles, mappings, snapshots, scorecards, lines, standards, phase state, workflow steps, and workflow history.
+- [x] Implement repositories or equivalent data access for cycles, mappings, snapshots, scorecards, lines, standards, phase state, workflow steps, and workflow history.
 - Dependencies: M1-T1.
 - Acceptance criteria:
   - Business services do not issue ad hoc schema changes.
@@ -125,8 +126,8 @@ Goal: create the relational base for one 2027 cycle, five fixed form types, per-
 
 ### Milestone 1 gate
 
-- [ ] A fresh database can be migrated and seeded with one command sequence.
-- [ ] Schema and seed integration tests pass.
+- [x] A fresh database can be migrated and seeded with one command sequence.
+- [x] Schema and seed integration tests pass.
 
 ## Milestone 2: Oracle integration and test identity
 
@@ -134,7 +135,7 @@ Goal: resolve valid test users and all external data required for form assignmen
 
 ### M2-T1: Implement the server-side Oracle employee client
 
-- [ ] Fetch the required employee fields from the PRD employee endpoint and provide employee lookup plus department population operations.
+- [x] Fetch the required employee fields from the PRD employee endpoint and provide employee lookup plus department population operations.
 - Dependencies: M0-T2, M0-T3.
 - Acceptance criteria:
   - Requests use `ORACLE_BEARER_TOKEN` only on the server.
@@ -148,7 +149,7 @@ Goal: resolve valid test users and all external data required for form assignmen
 
 ### M2-T2: Implement Department Head lookup
 
-- [ ] Fetch Department Head records and compare employee numbers exactly for below-Grade-18 form assignment and Department Head permissions.
+- [x] Fetch Department Head records and compare employee numbers exactly for below-Grade-18 form assignment and Department Head permissions.
 - Dependencies: M2-T1.
 - Acceptance criteria:
   - Grade 18 and above does not depend on Department Head lookup for form choice.
@@ -160,7 +161,7 @@ Goal: resolve valid test users and all external data required for form assignmen
 
 ### M2-T3: Implement employer-to-company resolution
 
-- [ ] Resolve leadership employees' employer values against company records and classify only `org_Name = "DEPA United Group PJSC"` as DUG.
+- [x] Resolve leadership employees' employer values against company records and classify only `org_Name = "DEPA United Group PJSC"` as DUG.
 - Dependencies: M2-T1.
 - Acceptance criteria:
   - Grade 18 and above employees resolve to DUG or KBU only from the mapping response.
@@ -172,7 +173,7 @@ Goal: resolve valid test users and all external data required for form assignmen
 
 ### M2-T4: Implement test login and current-user context
 
-- [ ] Add passwordless login by valid `EMPLOYEE_NUMBER`, server-side current-user resolution, logout, and session restoration suitable for the development POC.
+- [x] Add passwordless login by valid `EMPLOYEE_NUMBER`, server-side current-user resolution, logout, and session restoration suitable for the development POC.
 - Dependencies: M2-T1.
 - Acceptance criteria:
   - Any valid Oracle employee can log in with an employee number and no password.
@@ -186,8 +187,8 @@ Goal: resolve valid test users and all external data required for form assignmen
 
 ### Milestone 2 gate
 
-- [ ] Oracle fixture tests pass and a browser user can log in by employee number.
-- [ ] The browser never sends a request to Oracle and never receives the bearer token.
+- [x] Oracle fixture tests pass and a browser user can log in by employee number.
+- [x] The browser never sends a request to Oracle and never receives the bearer token.
 
 ## Milestone 3: form assignment, RoleCategory, and HR generation
 
@@ -195,7 +196,7 @@ Goal: prove the strict assignment decision tree and the two-step Populate then G
 
 ### M3-T1: Implement the pure form-assignment decision service
 
-- [ ] Encode the strict Grade, employer classification, Department Head, then RoleCategory precedence from PRD section 14.
+- [x] Encode the strict Grade, employer classification, Department Head, then RoleCategory precedence from PRD section 14.
 - Dependencies: M2-T2, M2-T3.
 - Acceptance criteria:
   - Grade 18 or above plus DUG maps to DUG Leadership Scorecard.
@@ -210,7 +211,7 @@ Goal: prove the strict assignment decision tree and the two-step Populate then G
 
 ### M3-T2: Implement RoleCategory administration
 
-- [ ] Add backend operations and a minimal screen to view and assign only `ProjectDeliveryProfessional` or `AdministrativeSupport` mappings.
+- [x] Add backend operations and a minimal screen to view and assign only `ProjectDeliveryProfessional` or `AdministrativeSupport` mappings.
 - Dependencies: M1-T3, M2-T4.
 - Acceptance criteria:
   - HR Admin can manage all mappings.
@@ -225,7 +226,7 @@ Goal: prove the strict assignment decision tree and the two-step Populate then G
 
 ### M3-T3: Implement HR Populate preview
 
-- [ ] Add the Department selector and Populate operation that fetches eligible employees, resolves assignment inputs, checks existing 2027 scorecards, and displays the review table without writing scorecards.
+- [x] Add the Department selector and Populate operation that fetches eligible employees, resolves assignment inputs, checks existing 2027 scorecards, and displays the review table without writing scorecards.
 - Dependencies: M3-T1, M3-T2, M2-T4.
 - Acceptance criteria:
   - Only HR Admin can call Populate.
@@ -240,7 +241,7 @@ Goal: prove the strict assignment decision tree and the two-step Populate then G
 
 ### M3-T4: Implement transactional Generate
 
-- [ ] Revalidate selected employees and create valid 2027 snapshots, scorecards, initial phase state, predefined Employee to Line Manager workflow steps, appropriate fixed standard rows, and `Created` history entries.
+- [x] Revalidate selected employees and create valid 2027 snapshots, scorecards, initial phase state, predefined Employee to Line Manager workflow steps, appropriate fixed standard rows, and `Created` history entries.
 - Dependencies: M3-T3, M1-T3.
 - Acceptance criteria:
   - Only HR Admin can call Generate.
@@ -258,8 +259,8 @@ Goal: prove the strict assignment decision tree and the two-step Populate then G
 
 ### Milestone 3 gate
 
-- [ ] Browser acceptance scenarios 2 through 6 pass with controlled fixture data.
-- [ ] Database inspection confirms one scorecard per employee for 2027 and no writes from Populate.
+- [x] Browser acceptance scenarios 2 through 6 pass with controlled fixture data.
+- [x] Database inspection confirms one scorecard per employee for 2027 and no writes from Populate.
 
 ## Milestone 4: authorization, workflow engine, and phase control
 
@@ -267,7 +268,7 @@ Goal: centralize backend visibility, field ownership, workflow transitions, lock
 
 ### M4-T1: Implement scorecard visibility authorization
 
-- [ ] Add backend policies for own scorecard, direct reports, Department Head department scope, HR all-record access, and IT technical read-only inspection where needed for POC troubleshooting.
+- [x] Add backend policies for own scorecard, direct reports, Department Head department scope, HR all-record access, and IT technical read-only inspection where needed for POC troubleshooting.
 - Dependencies: M2-T4, M3-T4.
 - Acceptance criteria:
   - Employees see only their own scorecard.
@@ -282,7 +283,7 @@ Goal: centralize backend visibility, field ownership, workflow transitions, lock
 
 ### M4-T2: Implement field-level read and write policies
 
-- [ ] Define backend allowlists for employee-owned, manager-owned, phase-specific, and form-specific fields.
+- [x] Define backend allowlists for employee-owned, manager-owned, phase-specific, and form-specific fields.
 - Dependencies: M4-T1.
 - Acceptance criteria:
   - Only the current pending participant can save or transition.
@@ -297,7 +298,7 @@ Goal: centralize backend visibility, field ownership, workflow transitions, lock
 
 ### M4-T3: Implement workflow state transitions
 
-- [ ] Add transactional Save as Draft, Initiate, Approve, Reject, and Resubmit commands for the predefined Employee to Line Manager workflow.
+- [x] Add transactional Save as Draft, Initiate, Approve, Reject, and Resubmit commands for the predefined Employee to Line Manager workflow.
 - Dependencies: M4-T2, M1-T3.
 - Acceptance criteria:
   - Save as Draft persists only the current participant's allowed fields and does not advance.
@@ -313,7 +314,7 @@ Goal: centralize backend visibility, field ownership, workflow transitions, lock
 
 ### M4-T4: Implement immutable workflow history and comments
 
-- [ ] Append the required history record for Created, SavedDraft, Initiated, Approved, Rejected, Resubmitted, PhaseOpened, PhaseClosed, and Closed actions.
+- [x] Append the required history record for Created, SavedDraft, Initiated, Approved, Rejected, Resubmitted, PhaseOpened, PhaseClosed, and Closed actions.
 - Dependencies: M4-T3.
 - Acceptance criteria:
   - Entries contain scorecard, phase, action, actor employee number, comment, timestamp, from participant, and to participant when applicable.
@@ -326,7 +327,7 @@ Goal: centralize backend visibility, field ownership, workflow transitions, lock
 
 ### M4-T5: Implement HR phase control and scorecard phase opening
 
-- [ ] Add a simple HR-only control that advances the 2027 cycle through GoalSetting, MidYear, YearEnd, Development, and Closed and opens the corresponding phase for eligible scorecards.
+- [x] Add a simple HR-only control that advances the 2027 cycle through GoalSetting, MidYear, YearEnd, Development, and Closed and opens the corresponding phase for eligible scorecards.
 - Dependencies: M4-T3, M4-T4.
 - Acceptance criteria:
   - There is no date-driven transition and no multi-year selector.
@@ -342,8 +343,8 @@ Goal: centralize backend visibility, field ownership, workflow transitions, lock
 
 ### Milestone 4 gate
 
-- [ ] Authorization and workflow test matrices pass.
-- [ ] No REST request can bypass current participant, field ownership, phase locking, or closed-state rules.
+- [x] Authorization and workflow test matrices pass.
+- [x] No REST request can bypass current participant, field ownership, phase locking, or closed-state rules.
 
 ## Milestone 5: application shell and role-specific lists
 
@@ -351,7 +352,7 @@ Goal: expose only the simple screens needed to navigate the POC.
 
 ### M5-T1: Build the branded application shell and login screen
 
-- [ ] Implement Test Login and a responsive application shell using Depa PMS colors `#CF2729`, `#D7CCB8`, `#F15B40`, and `#414042` selectively.
+- [x] Implement Test Login and a responsive application shell using Depa PMS colors `#CF2729`, `#D7CCB8`, `#F15B40`, and `#414042` selectively.
 - Dependencies: M2-T4.
 - Acceptance criteria:
   - The interface is clean, minimal, professional, easy to scan, and free of unnecessary animation.
@@ -365,7 +366,7 @@ Goal: expose only the simple screens needed to navigate the POC.
 
 ### M5-T2: Build Home / My PMS and authorized scorecard routing
 
-- [ ] Show the current user's 2027 scorecard, form type, active phase, workflow status, pending participant, and link to the form.
+- [x] Show the current user's 2027 scorecard, form type, active phase, workflow status, pending participant, and link to the form.
 - Dependencies: M4-T1, M5-T1.
 - Acceptance criteria:
   - A user with no generated scorecard sees a clear empty state.
@@ -377,7 +378,7 @@ Goal: expose only the simple screens needed to navigate the POC.
 
 ### M5-T3: Build My Team and Department PMS lists
 
-- [ ] Add simple manager and Department Head lists showing employee, form, current phase, status, and pending participant.
+- [x] Add simple manager and Department Head lists showing employee, form, current phase, status, and pending participant.
 - Dependencies: M4-T1, M5-T1.
 - Acceptance criteria:
   - Managers receive only direct reports.
@@ -389,7 +390,7 @@ Goal: expose only the simple screens needed to navigate the POC.
 
 ### M5-T4: Build HR All 2027 Submissions and phase screen
 
-- [ ] Add the simple all-submissions list and connect the phase control from M4-T5.
+- [x] Add the simple all-submissions list and connect the phase control from M4-T5.
 - Dependencies: M4-T5, M5-T1.
 - Acceptance criteria:
   - Only HR Admin can access the screens.
@@ -401,8 +402,8 @@ Goal: expose only the simple screens needed to navigate the POC.
 
 ### Milestone 5 gate
 
-- [ ] Each role can reach every in-scope screen it is authorized to use and no others.
-- [ ] Browser checks confirm simple responsive navigation and accessible controls.
+- [x] Each role can reach every in-scope screen it is authorized to use and no others.
+- [x] Browser checks confirm simple responsive navigation and accessible controls.
 
 ## Milestone 6: the five forms and Goal Setting
 
@@ -410,7 +411,7 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
 
 ### M6-T1: Define form-specific REST contracts and validation
 
-- [ ] Implement backend schemas for the fields and row rules of each form type.
+- [x] Implement backend schemas for the fields and row rules of each form type.
 - Dependencies: M4-T2, M3-T4.
 - Acceptance criteria:
   - DUG objectives contain the PRD fields, require at least one row, a Perspective, a seeded strategy link, and total weight 100 percent. The UI may recommend 4 to 8 without treating 8 as a PRD hard maximum.
@@ -427,7 +428,7 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
 
 ### M6-T2: Build the five form renderers
 
-- [ ] Render the correct scorecard from server-provided form type using shared controls where fields genuinely match.
+- [x] Render the correct scorecard from server-provided form type using shared controls where fields genuinely match.
 - Dependencies: M6-T1, M5-T2.
 - Acceptance criteria:
   - DUG shows only the DUG perspectives and fields.
@@ -442,7 +443,7 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
 
 ### M6-T3: Implement Goal Setting row editing and draft save
 
-- [ ] Allow employees pending in Goal Setting to edit employee-owned goal fields and save a draft without advancing.
+- [x] Allow employees pending in Goal Setting to edit employee-owned goal fields and save a draft without advancing.
 - Dependencies: M6-T2, M4-T3.
 - Acceptance criteria:
   - DUG employees can add and remove objective rows while preserving the minimum of one at submission.
@@ -457,7 +458,7 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
 
 ### M6-T4: Complete the Goal Setting workflow
 
-- [ ] Connect Initiate, manager draft where applicable, Approve, Reject, and employee Resubmit to the form UI.
+- [x] Connect Initiate, manager draft where applicable, Approve, Reject, and employee Resubmit to the form UI.
 - Dependencies: M6-T3, M4-T4.
 - Acceptance criteria:
   - Initiate blocks invalid row counts, missing links or targets, and totals other than exactly 100 percent.
@@ -473,7 +474,7 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
 
 ### M6-T5: Display workflow history and comments
 
-- [ ] Add an ordered history view to the scorecard for all authorized viewers and comment inputs on workflow actions.
+- [x] Add an ordered history view to the scorecard for all authorized viewers and comment inputs on workflow actions.
 - Dependencies: M4-T4, M6-T4.
 - Acceptance criteria:
   - The view shows phase, action, actor, comment, date/time, and participant movement when present.
@@ -485,8 +486,8 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
 
 ### Milestone 6 gate
 
-- [ ] All five forms render correctly in the browser.
-- [ ] Browser acceptance scenarios 7 through 9 pass and Goal Setting becomes read-only after approval.
+- [x] All five forms render correctly in the browser.
+- [x] Browser acceptance scenarios 7 through 9 pass and Goal Setting becomes read-only after approval.
 
 ## Milestone 7: Mid-Year Review
 
@@ -494,7 +495,7 @@ Goal: allow limited plan changes and progress review through the same employee-m
 
 ### M7-T1: Implement Mid-Year backend rules
 
-- [ ] Allow the employee to update applicable KPI or objective wording, target, measure, weight, strategy link, Mid-Year status, and Mid-Year comment only while pending in Mid-Year.
+- [x] Allow the employee to update applicable KPI or objective wording, target, measure, weight, strategy link, Mid-Year status, and Mid-Year comment only while pending in Mid-Year.
 - Dependencies: M4-T5, M6-T4.
 - Acceptance criteria:
   - Supported statuses are exactly `OnTrack`, `AtRisk`, and `Blocked` where the form has Mid-Year status.
@@ -507,7 +508,7 @@ Goal: allow limited plan changes and progress review through the same employee-m
 
 ### M7-T2: Build the Mid-Year user journey
 
-- [ ] Add phase-specific employee fields and the shared draft, Initiate, Approve, Reject, and Resubmit controls.
+- [x] Add phase-specific employee fields and the shared draft, Initiate, Approve, Reject, and Resubmit controls.
 - Dependencies: M7-T1, M6-T5.
 - Acceptance criteria:
   - HR can open Mid-Year only after Goal Setting approval.
@@ -521,8 +522,8 @@ Goal: allow limited plan changes and progress review through the same employee-m
 
 ### Milestone 7 gate
 
-- [ ] Browser acceptance scenario 11 passes.
-- [ ] Approved Mid-Year content is read-only and Year-End cannot introduce structural plan changes.
+- [x] Browser acceptance scenario 11 passes.
+- [x] Approved Mid-Year content is read-only and Year-End cannot introduce structural plan changes.
 
 ## Milestone 8: Year-End self-review, manager rating, and calculation
 
@@ -530,7 +531,7 @@ Goal: enforce confidential drafts, rating rules, separate evidence, and weighted
 
 ### M8-T1: Implement Year-End employee validation and draft privacy
 
-- [ ] Allow KPI-form employees to enter Actual, SelfRating, EmployeeComment, and EmployeeEvidenceURL, while Administrative / Support employees enter comments and applicable employee evidence without SelfRating.
+- [x] Allow KPI-form employees to enter Actual, SelfRating, EmployeeComment, and EmployeeEvidenceURL, while Administrative / Support employees enter comments and applicable employee evidence without SelfRating.
 - Dependencies: M7-T2, M4-T2.
 - Acceptance criteria:
   - SelfRating accepts only 1 through 5 where present.
@@ -545,7 +546,7 @@ Goal: enforce confidential drafts, rating rules, separate evidence, and weighted
 
 ### M8-T2: Implement manager rating validation and draft privacy
 
-- [ ] Allow the pending Line Manager to save ManagerRating, ManagerComment, and ManagerEvidenceURL drafts and then approve or reject.
+- [x] Allow the pending Line Manager to save ManagerRating, ManagerComment, and ManagerEvidenceURL drafts and then approve or reject.
 - Dependencies: M8-T1, M4-T3.
 - Acceptance criteria:
   - ManagerRating accepts only 1 through 5.
@@ -560,7 +561,7 @@ Goal: enforce confidential drafts, rating rules, separate evidence, and weighted
 
 ### M8-T3: Calculate and display OverallRating
 
-- [ ] Calculate `sum(ManagerRating * Weight / 100)` only after every required manager rating exists and display one decimal place.
+- [x] Calculate `sum(ManagerRating * Weight / 100)` only after every required manager rating exists and display one decimal place.
 - Dependencies: M8-T2.
 - Acceptance criteria:
   - The persisted or derived result uses manager ratings, never SelfRating.
@@ -573,7 +574,7 @@ Goal: enforce confidential drafts, rating rules, separate evidence, and weighted
 
 ### M8-T4: Complete the Year-End browser journey
 
-- [ ] Connect Year-End employee and manager screens, draft actions, rejection or resubmission, approval, history, final rating visibility, and OverallRating.
+- [x] Connect Year-End employee and manager screens, draft actions, rejection or resubmission, approval, history, final rating visibility, and OverallRating.
 - Dependencies: M8-T3, M6-T5.
 - Acceptance criteria:
   - The browser journey matches PRD acceptance scenarios 10, 12, and 13.
@@ -586,8 +587,8 @@ Goal: enforce confidential drafts, rating rules, separate evidence, and weighted
 
 ### Milestone 8 gate
 
-- [ ] Browser acceptance scenarios 10, 12, and 13 pass.
-- [ ] API tests prove neither hidden drafts nor invalid evidence/rating payloads can bypass backend rules.
+- [x] Browser acceptance scenarios 10, 12, and 13 pass.
+- [x] API tests prove neither hidden drafts nor invalid evidence/rating payloads can bypass backend rules.
 
 ## Milestone 9: Development and final close
 
@@ -595,7 +596,7 @@ Goal: record simple development information, complete the final workflow, and ma
 
 ### M9-T1: Implement Development phase fields and ownership
 
-- [ ] Add a simple `DevelopmentNotes` experience for agreed development priorities, actions, manager feedback, and employee comments without adding a separate development-planning product.
+- [x] Add a simple `DevelopmentNotes` experience for agreed development priorities, actions, manager feedback, and employee comments without adding a separate development-planning product.
 - Dependencies: M8-T4, M4-T5.
 - Acceptance criteria:
   - HR opens Development only after Year-End approval.
@@ -608,7 +609,7 @@ Goal: record simple development information, complete the final workflow, and ma
 
 ### M9-T2: Close the scorecard after final approval
 
-- [ ] On final Development approval, set scorecard status to `Closed`, record the close time and `Closed` history action, and reject all later mutations.
+- [x] On final Development approval, set scorecard status to `Closed`, record the close time and `Closed` history action, and reject all later mutations.
 - Dependencies: M9-T1, M4-T4.
 - Acceptance criteria:
   - Closing happens atomically with final approval.
@@ -621,27 +622,27 @@ Goal: record simple development information, complete the final workflow, and ma
 
 ### Milestone 9 gate
 
-- [ ] Browser acceptance scenario 14 passes.
-- [ ] Closed records remain readable to authorized users and immutable through the UI and REST API.
+- [x] Browser acceptance scenario 14 passes.
+- [x] Closed records remain readable to authorized users and immutable through the UI and REST API.
 
 ## Milestone 10: complete POC validation and handoff
 
 Goal: prove the full journey against the authoritative acceptance scenarios and leave a reproducible local development setup.
 
-### M10-T1: Build the representative end-to-end dataset
+### M10-T1: Build the representative test-only end-to-end dataset
 
-- [ ] Provide documented, non-secret fixtures or seed inputs for HR, IT, a manager, and employees representing DUG leadership, KBU leadership, below-18 Department Head, Project Delivery / Professional, and Administrative / Support.
+- [x] Provide non-secret, test-only fixtures for HR, IT, a manager, and employees representing DUG leadership, KBU leadership, below-18 Department Head, Project Delivery / Professional, and Administrative / Support.
 - Dependencies: M3-T4, M9-T2.
 - Acceptance criteria:
   - The dataset exercises Grade 17 and 18 boundaries, missing mappings, missing manager, duplicate scorecard, and evidence ratings.
-  - Fixture identities and expected assignments are documented.
+  - Fixture identities and expected assignments are contained under automated test code and cannot be enabled in the running application.
   - No real bearer token or unnecessary personal data is committed.
 - Testing requirements:
   - Recreate the test database from migrations and seeds and confirm every fixture resolves to its documented result.
 
 ### M10-T2: Automate the 14 PRD acceptance scenarios in the browser
 
-- [ ] Add browser tests for login, generation, all assignment branches, Goal Setting, rejection/resubmission, weights, evidence, Mid-Year, Year-End, Administrative / Support, and close.
+- [x] Add browser tests for login, generation, all assignment branches, Goal Setting, rejection/resubmission, weights, evidence, Mid-Year, Year-End, Administrative / Support, and close.
 - Dependencies: M10-T1.
 - Acceptance criteria:
   - Scenarios 1 through 14 each have a named test or a clearly identified section of one ordered end-to-end test.
@@ -653,7 +654,7 @@ Goal: prove the full journey against the authoritative acceptance scenarios and 
 
 ### M10-T3: Run the authorization and business-rule regression matrix
 
-- [ ] Execute the full unit, database integration, API integration, component, and browser suites and close any coverage gaps found in critical rules.
+- [x] Execute the full unit, database integration, API integration, component, and browser suites and close any coverage gaps found in critical rules.
 - Dependencies: M10-T2.
 - Acceptance criteria:
   - All five forms, five phases, participant transitions, role scopes, field ownership combinations, rating values, evidence requirements, weight rules, and duplicate actions have passing tests.
@@ -665,7 +666,7 @@ Goal: prove the full journey against the authoritative acceptance scenarios and 
 
 ### M10-T4: Document local setup and demonstration procedure
 
-- [ ] Write concise development instructions for prerequisites, configuration keys, migrations, seeds, start commands, test commands, Oracle smoke testing, and the end-to-end demo order.
+- [x] Write concise development instructions for prerequisites, configuration keys, migrations, seeds, start commands, test commands, Oracle smoke testing, and the end-to-end demo order.
 - Dependencies: M10-T3.
 - Acceptance criteria:
   - A developer can start from an empty database and reach the login screen without undocumented manual database edits.
@@ -678,10 +679,10 @@ Goal: prove the full journey against the authoritative acceptance scenarios and 
 
 ### Milestone 10 gate
 
-- [ ] All automated checks pass from a clean database.
-- [ ] All 14 PRD acceptance scenarios pass in the browser.
-- [ ] The full annual journey can be demonstrated locally without manual database changes.
-- [ ] A final scope review confirms that excluded features were not implemented.
+- [x] All automated checks pass from a clean database.
+- [x] All 14 PRD acceptance scenarios pass in the browser.
+- [x] The full annual journey can be demonstrated locally without manual database changes.
+- [x] A final scope review confirms that excluded features were not implemented.
 
 ## Dependency summary
 

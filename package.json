@@ -1,0 +1,27 @@
+{
+  "name": "depa-pms-poc",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c red,blue \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -ws",
+    "lint": "npm run lint -ws",
+    "typecheck": "npm run typecheck -ws",
+    "test": "npm run test -ws",
+    "test:backend": "npm run test -w backend",
+    "test:frontend": "npm run test -w frontend",
+    "test:db": "npm run test:db -w backend",
+    "test:api": "npm run test:api -w backend",
+    "test:e2e": "npm run db:test:reset -w backend && playwright test",
+    "db:test:reset": "npm run db:test:reset -w backend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:rollback": "npm run db:rollback -w backend",
+    "db:seed": "npm run db:seed -w backend",
+    "oracle:smoke": "npm run oracle:smoke -w backend"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "concurrently": "^9.2.1"
+  }
+}

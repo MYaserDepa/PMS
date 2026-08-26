@@ -378,7 +378,7 @@ PMS must determine whether the employee belongs to DUG or a KBU.
 
 The employee's `EMPLOYER` value is resolved against:
 
-`https://appstoredev01.uaenorth.cloudapp.azure.com/api/v1/module/submissions/67065de0ed9c6b400a66187f`
+`https://nexus.depa.com/api/v1/module/submissions/67065de0ed9c6b400a66187f`
 
 An employee is considered a DUG employee when the `EMPLOYER` maps to a company record whose:
 

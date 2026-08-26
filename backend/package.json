@@ -1,0 +1,44 @@
+{
+  "name": "@pms/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --import tsx src/server.ts",
+    "dev:e2e": "node --watch --import tsx test/e2e-server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude 'test/database/**' --exclude 'test/api/**'",
+    "test:db": "node --import tsx src/database/test-database-cli.ts && PMS_USE_TEST_DATABASE=true vitest run test/database",
+    "test:api": "node --import tsx src/database/test-database-cli.ts && PMS_USE_TEST_DATABASE=true PMS_RESET_TEST_DATABASE_PER_FILE=true vitest run test/api",
+    "db:migrate": "node --import tsx src/database/cli.ts up",
+    "db:rollback": "node --import tsx src/database/cli.ts down",
+    "db:seed": "node --import tsx src/database/seed-cli.ts",
+    "db:test:reset": "node --import tsx src/database/test-database-cli.ts",
+    "oracle:smoke": "node --import tsx src/oracle/smoke-cli.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "@types/pg": "^8.15.5",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0",
+    "vitest": "^3.2.4"
+  }
+}
