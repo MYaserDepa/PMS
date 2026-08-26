@@ -111,6 +111,8 @@ The application will support:
 - PMS cycle administration;
 - bulk form creation by HR;
 - Oracle employee-data retrieval;
+- employer-to-company mapping for DUG/KBU leadership form determination;
+- Department Head determination;
 - RoleCategory assignment;
 - configurable employee-specific workflows;
 - goal setting;
@@ -264,7 +266,7 @@ HR Admin can:
 - retrieve employee information from Oracle;
 - select employees by department;
 - populate and validate the selected Department's employee population before PMS generation;
-- review employee RoleCategory, line manager, form assignment, workflow assignment, and validation status;
+- review employee Grade, Employer, DUG/KBU classification where applicable, Department Head status, RoleCategory, line manager, form assignment, workflow assignment, and validation status;
 - bulk-create PMS submissions after reviewing the populated employee list;
 - view all submissions;
 - configure strategy reference data;
@@ -366,6 +368,32 @@ The bearer token must:
 
 ---
 
+### 9.1 Employer-to-company mapping for leadership forms
+
+For employees with `GRADE >= 18`, PMS must determine whether the employee belongs to DUG or to a KBU before assigning the leadership scorecard.
+
+The employee's `EMPLOYER` value from the Oracle/Nexus employee API is resolved against the existing company-mapping submission endpoint:
+
+`https://appstoredev01.uaenorth.cloudapp.azure.com/api/v1/module/submissions/67065de0ed9c6b400a66187f`
+
+The returned company configuration contains organization records with `org_Name` and nested mappings such as:
+
+- `fieldName = "EMPLOYER"`;
+- `value = <employee EMPLOYER value>`.
+
+An employee is considered a **DUG employee** when their `EMPLOYER` value maps to a company record whose:
+
+`org_Name = "DEPA United Group PJSC"`
+
+For form assignment:
+
+- `GRADE >= 18` and DUG employee → **DUG Leadership Scorecard**;
+- `GRADE >= 18` and not a DUG employee → **KBU Leadership Scorecard**.
+
+This lookup must be performed server-side. Failure to retrieve or resolve the required company mapping must not silently default an employee to the KBU Leadership Scorecard; the employee must instead be marked as not ready until the DUG/KBU classification can be determined reliably.
+
+---
+
 ## 10. Employee data fields
 
 The Oracle employee API includes data such as:
@@ -404,6 +432,9 @@ The process must use a two-step **Populate → Generate** model.
    - Employee Name;
    - Department;
    - Grade;
+   - Employer;
+   - DUG/KBU classification, where `GRADE >= 18`;
+   - Department Head status, where `GRADE < 18`;
    - RoleCategory, where required;
    - Line Manager;
    - applicable Form Type;
@@ -415,11 +446,13 @@ Validation must include, where applicable:
 
 - no PMS submission already exists for the employee and selected Year;
 - Employee Number is available;
-- Grade is available;
+- Grade is available and can be interpreted for form assignment;
 - Department is available;
-- RoleCategory is available where required;
+- for `GRADE >= 18`, Employer is available and DUG/KBU classification can be resolved through the company mapping;
+- for `GRADE < 18`, Department Head status can be determined;
+- for `GRADE < 18` employees who are not Department Heads, RoleCategory is available;
 - Line Manager can be resolved;
-- applicable Form Type can be determined;
+- applicable Form Type can be determined using the ordered form-assignment rules in Section 19;
 - applicable Workflow can be resolved.
 
 Each employee must receive a clear validation status. Typical statuses include:
@@ -430,18 +463,21 @@ Each employee must receive a clear validation status. Typical statuses include:
 - `Missing Manager`;
 - `Missing Grade`;
 - `Missing Department`;
+- `Missing Employer`;
+- `Unable to Resolve DUG/KBU`;
+- `Unable to Determine Department Head Status`;
 - `No Valid Form Mapping`;
 - `Missing Workflow Configuration`.
 
 Example review columns:
 
-| Employee | RoleCategory | Manager | Form | Workflow | Status |
-| --- | --- | --- | --- | --- | --- |
-| Employee A | ProjectDeliveryProfessional | Manager A | Project Delivery / Professional | Employee → Line Manager | Ready |
-| Employee B | Missing | Manager B | — | — | Missing RoleCategory |
-| Employee C | AdministrativeSupport | Missing | Administrative / Support | — | Missing Manager |
+| Employee | Grade | Employer / Classification | Department Head | RoleCategory | Manager | Form | Workflow | Status |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| Employee A | 18 | DUG | — | — | Manager A | DUG Leadership | Employee → Line Manager | Ready |
+| Employee B | 17 | KBU Company | No | Missing | Manager B | — | — | Missing RoleCategory |
+| Employee C | 17 | KBU Company | No | AdministrativeSupport | Missing | Administrative / Support | — | Missing Manager |
 
-The table should support practical filtering/searching for large departments, including by Validation Status, RoleCategory, Form Type, and Line Manager.
+The table should support practical filtering/searching for large departments, including by Validation Status, Grade, DUG/KBU classification, Department Head status, RoleCategory, Form Type, and Line Manager.
 
 **Populate is a preview and validation operation only.** It must not create PMS submissions, workflow instances, notifications, or other submission-related transactional data.
 
@@ -492,6 +528,8 @@ Examples:
 - employee changes job → existing PMS remains unchanged;
 - employee changes grade → existing PMS remains unchanged;
 - employee changes manager → existing PMS workflow remains unchanged unless HR deliberately reassigns it;
+- Employer/company mapping changes → existing form type remains unchanged;
+- Department Head status changes → existing form type remains unchanged;
 - RoleCategory changes → existing form type remains unchanged.
 
 This ensures historical PMS data represents the organizational position at the time the form was created.
@@ -539,7 +577,11 @@ The Department Head relationship will be used for:
 - department-level PMS visibility;
 - resolving `DepartmentHead` workflow participants where that participant source is configured.
 
-The application should map the employee's `DEPARTMENT` value from the employee API to the Department Head API's `NAME` value to determine the applicable Department Head.
+The application should map the employee's `DEPARTMENT` value from the employee API to the Department Head API's `NAME` value to determine the applicable Department Head for department ownership, visibility, RoleCategory administration, and workflow resolution.
+
+For **form assignment** of an employee with `GRADE < 18`, PMS must also determine whether the employee is themselves a Department Head. This is done by comparing the employee's `EMPLOYEE_NUMBER` with the Department Head API's `EMPLOYEE_NUMBER` values. A match means the employee follows the Department Head form branch defined in Section 19.
+
+The Department Head check is not used to override leadership form assignment for employees with `GRADE >= 18`; Grade 18+ employees are resolved first through the DUG/KBU leadership branch.
 
 ---
 
@@ -691,23 +733,58 @@ Reopening a cancelled submission restores the same PMS record and preserves its 
 
 ## 19. Form assignment
 
-The applicable form is determined when HR generates the PMS submission.
+The applicable form is determined during **Populate** and confirmed again during **Generate**. Exactly one of the five forms must be selected for each employee using the following ordered decision tree.
 
-General mapping:
+### 19.1 Ordered form-assignment rules
 
-| Employee Population                | Form                            |
-| ---------------------------------- | ------------------------------- |
-| Grade 18+ DUG Leadership           | DUG Leadership                  |
-| Grade 18+ KBU Leadership           | KBU Leadership                  |
-| Department Heads / Senior Managers | Department Head KPI             |
-| Project / Technical / Professional | Project Delivery / Professional |
-| Administrative / Support           | Administrative / Support        |
+#### Step 1 — Grade 18+ leadership branch
 
-Where Grade alone cannot determine the form, the Department Head-maintained `RoleCategory` is used.
+If:
 
-The form type is snapshotted when the PMS submission is created.
+`GRADE >= 18`
 
-Later RoleCategory changes do not automatically change an existing submission.
+then PMS does **not** evaluate Department Head status or RoleCategory for form selection. Instead, it resolves the employee's `EMPLOYER` through the company mapping described in Section 9.1.
+
+- If the employer maps to `DEPA United Group PJSC` → **DUG Leadership Scorecard**.
+- Otherwise → **KBU Leadership Scorecard**.
+
+#### Step 2 — Below Grade 18 Department Head branch
+
+If:
+
+`GRADE < 18`
+
+PMS checks whether the employee is a Department Head by comparing the employee's `EMPLOYEE_NUMBER` with the Department Head API records.
+
+- If the employee is a Department Head → **Department Heads / Senior Managers KPI Form**.
+- If the employee is not a Department Head → continue to Step 3.
+
+#### Step 3 — Below Grade 18 RoleCategory branch
+
+For an employee with `GRADE < 18` who is not a Department Head, the Department Head-maintained `RoleCategory` determines the form:
+
+- `ProjectDeliveryProfessional` → **Project Delivery / Professional KPI Form**;
+- `AdministrativeSupport` → **Administrative / Support Non-KPI Form**.
+
+If the required RoleCategory is missing or invalid, no form is created and the employee is marked `Missing RoleCategory` / `No Valid Form Mapping` during Populate.
+
+### 19.2 Precedence
+
+The decision tree is intentionally ordered. Earlier branches take precedence over later branches.
+
+Examples:
+
+- Grade 18 DUG employee who is also a Department Head → **DUG Leadership Scorecard**.
+- Grade 18 KBU employee who is also a Department Head → **KBU Leadership Scorecard**.
+- Grade 17 Department Head with `RoleCategory = ProjectDeliveryProfessional` → **Department Heads / Senior Managers KPI Form**.
+- Grade 17 non-Department Head with `RoleCategory = ProjectDeliveryProfessional` → **Project Delivery / Professional KPI Form**.
+- Grade 17 non-Department Head with `RoleCategory = AdministrativeSupport` → **Administrative / Support Non-KPI Form**.
+
+An employee must never receive more than one form for the same Year.
+
+### 19.3 Historical form assignment
+
+The resolved form type is snapshotted when the PMS submission is created. Later changes to Grade, Employer, Department Head status, company mapping, or RoleCategory do not automatically transform an existing submission.
 
 ---
 
@@ -1381,7 +1458,7 @@ The system must block submission of a SelfRating of 4 or 5 when the employee evi
 
 Population:
 
-Grade 18+ Group / DUG Leadership.
+Employees with `GRADE >= 18` whose `EMPLOYER` maps to `DEPA United Group PJSC` through the company mapping in Section 9.1.
 
 Perspectives:
 
@@ -1423,7 +1500,7 @@ No artificial requirement is imposed that every perspective must contain a KPI u
 
 Population:
 
-Grade 18+ KBU Leadership.
+Employees with `GRADE >= 18` whose `EMPLOYER` does not map to `DEPA United Group PJSC` through the company mapping in Section 9.1.
 
 Perspectives:
 
@@ -1459,6 +1536,10 @@ Strategic Initiatives may be unused where not applicable.
 
 ## 49. Department heads / senior managers KPI form
 
+Population:
+
+Employees with `GRADE < 18` who are identified as Department Heads through the Department Head API.
+
 ### Recommended KPI count (4-6)
 
 Fields per KPI:
@@ -1489,6 +1570,10 @@ Rules:
 ---
 
 ## 50. Project delivery / professional KPI form
+
+Population:
+
+Employees with `GRADE < 18` who are not Department Heads and whose `RoleCategory = ProjectDeliveryProfessional`.
 
 Performance Areas may include:
 
@@ -1528,6 +1613,10 @@ Rules:
 ---
 
 ## 51. Administrative / support non-KPI form
+
+Population:
+
+Employees with `GRADE < 18` who are not Department Heads and whose `RoleCategory = AdministrativeSupport`.
 
 The form uses fixed performance standards.
 
@@ -1974,6 +2063,8 @@ Exported data should include:
 - grade;
 - supervisor;
 - RoleCategory;
+- DUG/KBU classification or company mapping result used for form assignment, where applicable;
+- Department Head status used for form assignment, where applicable;
 - cycle;
 - form;
 - KPI/objective data;
@@ -2179,35 +2270,39 @@ The following decisions are considered confirmed for the initial implementation:
 
 27. RoleCategory changes do not transform an existing PMS form.
 
-28. Department Heads are obtained through a separate Oracle source.
+28. Department Heads are obtained through a separate Oracle source. For form assignment below Grade 18, an employee is treated as a Department Head when their `EMPLOYEE_NUMBER` matches a Department Head API record.
 
-29. An employee belongs to only one relevant KBU/company structure for this process.
+29. Form assignment follows a strict precedence: `GRADE >= 18` is resolved first as DUG vs KBU leadership; only employees with `GRADE < 18` are checked for Department Head status; only below-18 non-Department Heads use RoleCategory.
 
-30. HR manually controls phase opening and closing.
+30. For `GRADE >= 18`, DUG vs KBU is determined from the employee's `EMPLOYER` using the company mapping endpoint. Mapping to `DEPA United Group PJSC` means DUG Leadership; otherwise the employee follows the KBU Leadership form branch.
 
-31. Closing a phase is a hard system block. Reopening allows incomplete submissions to continue, while submissions already `FullyApproved` for that phase remain locked.
+31. An employee belongs to only one relevant KBU/company structure for this process.
 
-32. Cancelled status is required. A cancelled submission may be reopened, but cancellation never permits creation of a second PMS submission for the same employee and Year.
+32. HR manually controls phase opening and closing.
 
-33. No calibration functionality.
+33. Closing a phase is a hard system block. Reopening allows incomplete submissions to continue, while submissions already `FullyApproved` for that phase remain locked.
 
-34. No formal analytics/reporting module initially.
+34. Cancelled status is required. A cancelled submission may be reopened, but cancellation never permits creation of a second PMS submission for the same employee and Year.
 
-35. Evidence is represented as external URL/reference data rather than a stored PMS file, with separate employee and manager evidence references where applicable.
+35. No calibration functionality.
 
-36. A SelfRating of 4 or 5 requires employee-provided evidence, and a ManagerRating of 4 or 5 requires manager-provided evidence; both may exist independently for the same KPI.
+36. No formal analytics/reporting module initially.
 
-37. Notifications are both email and in-app.
+37. Evidence is represented as external URL/reference data rather than a stored PMS file, with separate employee and manager evidence references where applicable.
 
-38. Email failure does not stop workflow.
+38. A SelfRating of 4 or 5 requires employee-provided evidence, and a ManagerRating of 4 or 5 requires manager-provided evidence; both may exist independently for the same KPI.
 
-39. No repeated reminder/escalation notifications initially.
+39. Notifications are both email and in-app.
 
-40. Azure AD is used for SSO authentication, not as the source of organizational hierarchy.
+40. Email failure does not stop workflow.
 
-41. Oracle employee data is retrieved during HR form-generation operations rather than through daily scheduled sync.
+41. No repeated reminder/escalation notifications initially.
 
-42. Later Oracle changes do not automatically alter existing PMS submissions.
+42. Azure AD is used for SSO authentication, not as the source of organizational hierarchy.
+
+43. Oracle employee data is retrieved during HR form-generation operations rather than through daily scheduled sync.
+
+44. Later Oracle changes do not automatically alter existing PMS submissions.
 
 ---
 
