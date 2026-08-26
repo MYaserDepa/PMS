@@ -258,6 +258,7 @@ The updated mapping is used for future PMS cycles. It does not change the form t
 ### 7.4 HR administrator
 
 HR Administrators are the functional custodians of the PMS application.
+For the initial implementation, employee `EMPLOYEE_NUMBER = "12245"` is assigned the HR Admin role.
 
 HR Admin can:
 
@@ -305,6 +306,7 @@ HR Admin cannot directly alter a closed annual PMS record through normal applica
 ### 7.5 IT system administrator
 
 IT System Administrators are technical administrators rather than functional custodians.
+For the initial implementation, employee `EMPLOYEE_NUMBER = "21975"` is assigned the IT System Admin role.
 
 Their normal responsibilities are limited to:
 
@@ -328,6 +330,8 @@ IT should not participate in normal PMS workflows.
 Authentication will use Azure Active Directory SSO.
 
 Azure AD is used for authentication only.
+
+Initial administrative role assignments may be configured by Employee Number. These assignments are application configuration and are independent of Azure AD authentication.
 
 The PMS application itself controls:
 
