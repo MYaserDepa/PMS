@@ -1,6 +1,9 @@
 import { defineConfig } from '@playwright/test';
 import 'dotenv/config';
 
+const testFrontendUrl = 'http://127.0.0.1:5273';
+const testBackendUrl = 'http://127.0.0.1:3101';
+
 function testDatabaseUrl(source: string): string {
   const url = new URL(source);
   const name = decodeURIComponent(url.pathname.slice(1));
@@ -15,7 +18,8 @@ const testEnvironment = {
   ORACLE_DEPARTMENT_HEAD_URL: 'https://fixtures.invalid/department-heads',
   ORACLE_EMPLOYER_MAPPING_URL: 'https://fixtures.invalid/employer-mapping',
   ORACLE_BEARER_TOKEN: 'browser-fixture-token',
-  FRONTEND_ORIGIN: 'http://127.0.0.1:5173'
+  BACKEND_PORT: '3101',
+  FRONTEND_ORIGIN: testFrontendUrl
 };
 
 const browserLibraryPath = `${process.cwd()}/.browser-libs/usr/lib/x86_64-linux-gnu`;
@@ -24,9 +28,9 @@ process.env.LD_LIBRARY_PATH = [browserLibraryPath, process.env.LD_LIBRARY_PATH].
 export default defineConfig({
   testDir: './e2e',
   workers: 1,
-  use: { baseURL: 'http://127.0.0.1:5173', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
+  use: { baseURL: testFrontendUrl, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   webServer: [
-    { command: 'npm run dev:e2e -w backend', url: 'http://127.0.0.1:3001/api/health', reuseExistingServer: true, env: testEnvironment },
-    { command: 'npm run dev -w frontend -- --host 127.0.0.1', url: 'http://127.0.0.1:5173', reuseExistingServer: true, env: { VITE_API_BASE_URL: 'http://127.0.0.1:3001/api' } }
+    { command: 'npm run dev:e2e -w backend', url: `${testBackendUrl}/api/health`, reuseExistingServer: true, env: testEnvironment },
+    { command: 'npm run dev -w frontend -- --host 127.0.0.1 --port 5273', url: testFrontendUrl, reuseExistingServer: true, env: { VITE_API_BASE_URL: `${testBackendUrl}/api` } }
   ]
 });

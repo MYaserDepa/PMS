@@ -29,7 +29,7 @@ async function login(page: import('@playwright/test').Page, employeeNumber: stri
   await page.getByRole('button', { name: 'Test Login' }).click();
 }
 
-const backendUrl = 'http://127.0.0.1:3001/api';
+const backendUrl = 'http://127.0.0.1:3101/api';
 
 async function apiLogin(page: import('@playwright/test').Page, employeeNumber: string) {
   await page.request.post(`${backendUrl}/auth/login`, { data: { employeeNumber } });

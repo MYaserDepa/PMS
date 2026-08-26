@@ -4,6 +4,7 @@ import { App } from './App.js';
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   vi.restoreAllMocks();
 });
 
@@ -31,6 +32,10 @@ describe('App', () => {
     expect(screen.getByText('HR Admin')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create PMS Submissions' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'RoleCategory Mapping' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse navigation' }));
+    expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeInTheDocument();
+    expect(document.querySelector('.app-shell')).toHaveClass('navigation-collapsed');
+    expect(window.localStorage.getItem('pms-navigation-collapsed')).toBe('true');
   });
 
   it('renders the HR Populate preview with form and validation results', async () => {

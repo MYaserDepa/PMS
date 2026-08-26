@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Check, Clock3, Plus, RotateCcw, Save, Send, Trash2, X } from 'lucide-react';
 
 export interface ScorecardDetail {
   id: string;
@@ -177,22 +178,26 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
     setComment('');
   }
 
-  return <section aria-labelledby="scorecard-title">
-    <p className="eyebrow">{scorecard.current_phase}</p>
-    <h1 id="scorecard-title">{formNames[scorecard.form_type]}</h1>
-    <p>{scorecard.full_name} · {scorecard.status}</p>
-    {scorecard.overall_rating !== null && <p className="overall-rating">Overall Rating: {Number(scorecard.overall_rating).toFixed(1)}</p>}
-    <p className={`weight-total ${Math.abs(totalWeight - 100) < 0.0005 ? 'weight-valid' : ''}`}>Total Weight: {totalWeight.toFixed(1)}%</p>
+  return <section className="scorecard-page" aria-labelledby="scorecard-title">
+    <header className="scorecard-heading">
+      <div><p className="eyebrow">{scorecard.current_phase.replace(/([a-z])([A-Z])/g, '$1 $2')}</p><h1 id="scorecard-title">{formNames[scorecard.form_type]}</h1>
+        <div className="scorecard-context"><span className="scorecard-record">{scorecard.full_name} · <strong>{scorecard.status}</strong></span>{scorecard.pending_participant && <span>Pending with {scorecard.pending_participant === 'LineManager' ? 'line manager' : 'employee'}</span>}</div>
+      </div>
+      <div className="scorecard-metrics">
+        {scorecard.overall_rating !== null && <p className="overall-rating"><span>Overall Rating: {Number(scorecard.overall_rating).toFixed(1)}</span><small>Final manager score · 5.0 scale</small></p>}
+        <p className={`weight-total ${Math.abs(totalWeight - 100) < 0.0005 ? 'weight-valid' : ''}`}><span>Total Weight: {totalWeight.toFixed(1)}%</span><small>{Math.abs(totalWeight - 100) < 0.0005 ? 'Ready to submit' : 'Must equal 100%'}</small></p>
+      </div>
+    </header>
 
-    {scorecard.form_type === 'AdministrativeSupport' ? <div className="table-scroll"><table>
+    {scorecard.form_type === 'AdministrativeSupport' ? <div className="table-scroll"><table className="data-table scorecard-table">
       <thead><tr><th>Performance Standard</th><th>Expected Standard</th><th>Weight</th>{scorecard.current_phase === 'YearEnd' && <><th>Employee review</th><th>Manager review</th></>}</tr></thead>
       <tbody>{standards.map((standard, index) => <tr key={standard.id}><td>{standard.standardName}</td><td>{standard.expectedStandard}</td><td>{standard.weight.toFixed(1)}%</td>
         {scorecard.current_phase === 'YearEnd' && <><td><label>Employee Comment<textarea aria-label={`Employee Comment ${index + 1}`} disabled={!employeeYearEnd} value={standard.employeeComment} onChange={(event) => changeStandard(index, 'employeeComment', event.target.value)} /></label><label>Employee Evidence Reference<input aria-label={`Employee Evidence Reference ${index + 1}`} disabled={!employeeYearEnd} value={standard.employeeEvidenceUrl} onChange={(event) => changeStandard(index, 'employeeEvidenceUrl', event.target.value)} /></label></td>
           <td><label>Manager Rating<select aria-label={`Manager Rating ${index + 1}`} disabled={!managerYearEnd} value={standard.managerRating ?? ''} onChange={(event) => changeStandard(index, 'managerRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label><label>Manager Comment<textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} value={standard.managerComment} onChange={(event) => changeStandard(index, 'managerComment', event.target.value)} /></label><label>Manager Evidence Reference<input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} value={standard.managerEvidenceUrl} onChange={(event) => changeStandard(index, 'managerEvidenceUrl', event.target.value)} /></label></td></>}
       </tr>)}</tbody>
     </table></div> : <div className="form-lines">
-      {lines.map((line, index) => <fieldset key={`${line.id ?? 'new'}-${index}`}>
-        <legend>{scorecard.form_type.includes('Leadership') ? 'Objective' : 'KPI'} {index + 1}</legend>
+      {lines.map((line, index) => <fieldset className="scorecard-fieldset" key={`${line.id ?? 'new'}-${index}`}>
+        <legend><span className="utility-text">{String(index + 1).padStart(2, '0')}</span>{scorecard.form_type.includes('Leadership') ? 'Objective' : 'KPI'} {index + 1}</legend>
         {(scorecard.form_type === 'DUGLeadership' || scorecard.form_type === 'KBULeadership') && <label>Perspective<select aria-label={`Perspective ${index + 1}`} disabled={!editablePlan} value={line.perspective} onChange={(event) => change(index, 'perspective', event.target.value)}><option value="">Select</option>{options[scorecard.form_type].map((item) => <option key={item}>{item}</option>)}</select></label>}
         {scorecard.form_type === 'ProjectDeliveryProfessionalKPI' && <label>Performance Area<select aria-label={`Performance Area ${index + 1}`} disabled={!editablePlan} value={line.performanceArea} onChange={(event) => change(index, 'performanceArea', event.target.value)}><option value="">Select</option>{options.ProjectDeliveryProfessionalKPI.map((item) => <option key={item}>{item}</option>)}</select></label>}
         <label>Objective / KPI<input aria-label={`Objective / KPI ${index + 1}`} disabled={!editablePlan} value={line.title} onChange={(event) => change(index, 'title', event.target.value)} /></label>
@@ -214,9 +219,9 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
           <label>Manager Comment<textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} value={line.managerComment} onChange={(event) => change(index, 'managerComment', event.target.value)} /></label>
           <label>Manager Evidence Reference<input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} value={line.managerEvidenceUrl} onChange={(event) => change(index, 'managerEvidenceUrl', event.target.value)} /></label>
         </>}
-        {editablePlan && <button className="remove-button" type="button" onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}>Remove row {index + 1}</button>}
+        {editablePlan && <button className="remove-button" type="button" onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={15} aria-hidden="true" />Remove row {index + 1}</button>}
       </fieldset>)}
-      {editablePlan && <button type="button" onClick={() => setLines([...lines, emptyLine()])}>Add row</button>}
+      {editablePlan && <button className="add-row-button" type="button" onClick={() => setLines([...lines, emptyLine()])}><Plus size={17} aria-hidden="true" />Add row</button>}
     </div>}
 
     {scorecard.current_phase === 'Development' && <div className="development-fields">
@@ -225,26 +230,27 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
     </div>}
 
     {(employeePending || managerPending) && <div className="workflow-actions">
-      <label htmlFor="workflow-comment">Workflow comment</label>
-      <textarea id="workflow-comment" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={managerPending ? 'Add a review comment. Give a reason when rejecting.' : 'Optional comment'} />
-      <div>
-        <button type="button" disabled={busy} onClick={() => act('SavedDraft')}>Save as Draft</button>
-        {employeePending && <button type="button" disabled={busy} onClick={() => act(currentPhaseState?.requires_resubmission ? 'Resubmitted' : 'Initiated')}>{currentPhaseState?.requires_resubmission ? 'Resubmit' : 'Initiate'}</button>}
-        {managerPending && <><button type="button" disabled={busy} onClick={() => act('Approved')}>Approve</button><button className="reject-button" type="button" disabled={busy} onClick={() => act('Rejected')}>Reject</button></>}
+      <div className="workflow-heading"><div><span className="utility-text">NEXT ACTION</span><h2>{managerPending ? 'Manager decision' : 'Complete your submission'}</h2></div><span className="status-chip">Pending with you</span></div>
+      <label htmlFor="workflow-comment">Workflow comment<textarea id="workflow-comment" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={managerPending ? 'Add a review comment. Give a reason when rejecting.' : 'Optional comment'} /></label>
+      <div className="workflow-buttons">
+        <button className="secondary-action" type="button" disabled={busy} onClick={() => act('SavedDraft')}><Save size={16} aria-hidden="true" />Save as Draft</button>
+        {employeePending && <button type="button" disabled={busy} onClick={() => act(currentPhaseState?.requires_resubmission ? 'Resubmitted' : 'Initiated')}>{currentPhaseState?.requires_resubmission ? <RotateCcw size={16} aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}{currentPhaseState?.requires_resubmission ? 'Resubmit' : 'Initiate'}</button>}
+        {managerPending && <><button type="button" disabled={busy} onClick={() => act('Approved')}><Check size={16} aria-hidden="true" />Approve</button><button className="reject-button" type="button" disabled={busy} onClick={() => act('Rejected')}><X size={16} aria-hidden="true" />Reject</button></>}
       </div>
     </div>}
 
-    <section aria-labelledby="history-title" className="history"><h2 id="history-title">Workflow history</h2>
+    <section aria-labelledby="history-title" className="history"><div className="history-heading"><div><span className="utility-text">AUDIT TRAIL</span><h2 id="history-title">Workflow history</h2></div><Clock3 size={19} aria-hidden="true" /></div>
       {scorecard.history.length === 0 ? <p>No workflow history yet.</p> : <ol>{scorecard.history.map((entry) => {
         const timestamp = actionTime(entry.action_at);
         const movement = entry.from_participant || entry.to_participant
           ? `${String(entry.from_participant ?? '—')} → ${String(entry.to_participant ?? '—')}`
           : null;
-        return <li key={String(entry.id)}>
-          <strong>{String(entry.action)}</strong> · {String(entry.phase)} · {String(entry.action_by_employee_number)}
-          {timestamp ? <> · <time dateTime={String(entry.action_at)}>{timestamp}</time></> : null}
-          {movement ? <> · <span>{movement}</span></> : null}
+        return <li key={String(entry.id)}><span className="history-node" aria-hidden="true" />
+          <div><strong>{String(entry.action)}</strong><span>{String(entry.phase)} · {String(entry.action_by_employee_number)}</span>
+          {timestamp ? <time dateTime={String(entry.action_at)}>{timestamp}</time> : null}
+          {movement ? <span className="history-movement">{movement}</span> : null}
           {entry.comment ? <p>{String(entry.comment)}</p> : null}
+          </div>
         </li>;
       })}</ol>}
     </section>

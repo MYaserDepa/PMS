@@ -684,6 +684,56 @@ Goal: prove the full journey against the authoritative acceptance scenarios and 
 - [x] The full annual journey can be demonstrated locally without manual database changes.
 - [x] A final scope review confirms that excluded features were not implemented.
 
+## Milestone 11: corporate frontend redesign
+
+Goal: give the existing PMS workflows a compact, executive-grade interface without changing product scope or backend behavior.
+
+### M11-T1: Establish the visual system
+
+- [x] Integrate Tailwind CSS through the Vite plugin and define the Depa color, typography, spacing, focus, and motion tokens.
+- [x] Use locally bundled interface and utility fonts. Do not depend on a third-party font request at runtime.
+- Acceptance criteria:
+  - The interface uses the PRD colors selectively rather than flooding the page with brand red.
+  - Typography, density, borders, shadows, and controls follow one consistent system.
+  - Motion respects `prefers-reduced-motion`.
+
+### M11-T2: Redesign login, application shell, and loading states
+
+- [x] Build a compact login screen, responsive navigation rail, mobile header, user context, and phase spine.
+- [x] Replace plain loading text with an accessible workflow-stage loading mark.
+- Acceptance criteria:
+  - Navigation remains role-specific and keyboard accessible.
+  - Desktop and mobile layouts avoid large unused areas and horizontal page overflow.
+  - Loading states retain visible status text for assistive technology.
+
+### M11-T3: Redesign working screens and scorecards
+
+- [x] Restyle lists, tables, empty states, generation, RoleCategory mapping, phase control, scorecard fields, actions, and history with compact corporate components.
+- Acceptance criteria:
+  - Existing labels and accessible names used by the acceptance tests remain stable.
+  - Dense tables remain readable and scroll within their own container on narrow screens.
+  - Current phase, status, pending participant, weight, and next actions have a clear visual hierarchy.
+
+### Milestone 11 gate
+
+- [x] Frontend unit, component, build, lint, and type checks pass.
+- [x] All browser acceptance scenarios still pass against the real frontend and backend.
+- [x] Desktop and mobile screenshots have been reviewed for density, hierarchy, overflow, focus, and loading presentation.
+
+## Milestone 12: shell refinements
+
+Goal: incorporate the supplied Depa brand asset and give desktop users direct control over navigation density without adding unnecessary home-page scrolling.
+
+- [x] Move `depa-logo.png` into the frontend public assets and use it in every product wordmark.
+- [x] Add an accessible desktop navigation collapse control and persist the user's choice locally.
+- [x] Keep the desktop home screen within the available viewport whenever its content fits, while retaining normal mobile scrolling.
+
+### Milestone 12 gate
+
+- [x] Frontend tests, build, lint, and type checks pass.
+- [x] Browser workflows pass with expanded and collapsed navigation.
+- [x] Desktop and mobile screenshots confirm correct logo sizing, home-page height, and navigation behavior.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

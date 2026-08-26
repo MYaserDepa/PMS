@@ -1,4 +1,8 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import {
+  ArrowRight, Building2, FilePlus2, House, ListChecks, LogOut, Milestone,
+  PanelLeftClose, PanelLeftOpen, ShieldCheck, UserCog, UsersRound, type LucideIcon
+} from 'lucide-react';
 import { ScorecardView, type ScorecardDetail } from './ScorecardView.js';
 
 type CurrentUser = {
@@ -48,6 +52,40 @@ const formNames: Record<string, string> = {
 };
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
+const phaseOrder = ['GoalSetting', 'MidYear', 'YearEnd', 'Development', 'Closed'] as const;
+const phaseLabels: Record<(typeof phaseOrder)[number], string> = {
+  GoalSetting: 'Goals', MidYear: 'Mid-year', YearEnd: 'Year-end', Development: 'Development', Closed: 'Closed'
+};
+const navigationPreferenceKey = 'pms-navigation-collapsed';
+
+function Brand({ compact = false }: { compact?: boolean }) {
+  return <div className={`brand ${compact ? 'brand-compact' : ''}`} aria-label="Depa PMS 2027">
+    <img className="brand-logo" src="/assets/depa-logo.png" alt="" aria-hidden="true" />
+    <span className="brand-copy"><small>Performance · 2027</small></span>
+  </div>;
+}
+
+function PhaseSpine({ activePhase, compact = false }: { activePhase: string; compact?: boolean }) {
+  const activeIndex = Math.max(0, phaseOrder.indexOf(activePhase as (typeof phaseOrder)[number]));
+  return <ol className={`phase-spine ${compact ? 'phase-spine-compact' : ''}`} aria-label="2027 performance cycle">
+    {phaseOrder.map((phase, index) => <li key={phase} className={index < activeIndex ? 'phase-complete' : index === activeIndex ? 'phase-current' : ''}>
+      <span className="phase-node" aria-hidden="true">{index < activeIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
+      <span><small>{phaseLabels[phase]}</small>{index === activeIndex && <strong>Current</strong>}</span>
+    </li>)}
+  </ol>;
+}
+
+function WorkflowLoader() {
+  return <main className="loading-page">
+    <div className="loading-panel" role="status">
+      <div className="workflow-loader" aria-hidden="true">{phaseOrder.map((phase) => <span key={phase} />)}</div>
+      <div><p className="eyebrow">PMS 2027</p><p className="loading-title">Preparing your workspace</p><p className="loading-copy">Loading your identity and current performance cycle.</p></div>
+      <span className="sr-only">Loading PMS...</span>
+    </div>
+  </main>;
+}
+
+type NavigationItem = { screen: Screen; label: string; icon: LucideIcon; visible: boolean };
 
 export function App() {
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -69,12 +107,32 @@ export function App() {
   const [scorecardDetail, setScorecardDetail] = useState<ScorecardDetail | null>(null);
   const [strategyReferences, setStrategyReferences] = useState<Array<{ id: string; title: string }>>([]);
   const [actionBusy, setActionBusy] = useState(false);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(navigationPreferenceKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   async function api<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${apiBaseUrl}${path}`, { credentials: 'include', ...options });
     const result = response.status === 204 ? null : await response.json() as T & { error?: { message: string } };
     if (!response.ok) throw new Error(result?.error?.message ?? 'Request failed');
     return result as T;
+  }
+
+  function toggleNavigation() {
+    setNavigationCollapsed((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(navigationPreferenceKey, String(next));
+      } catch {
+        // The shell still collapses when browser storage is unavailable.
+      }
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -240,115 +298,166 @@ export function App() {
     }
   }
 
+  const ownScorecard = user ? scorecards.find((item) => item.employeeNumber === user.employeeNumber) : null;
+  const activePhase = scorecardDetail?.current_phase ?? cycle?.current_phase ?? ownScorecard?.currentPhase ?? 'GoalSetting';
+  const navigationItems: NavigationItem[] = user ? [
+    { screen: 'home', label: 'My PMS', icon: House, visible: true },
+    { screen: 'team', label: 'My Team', icon: UsersRound, visible: user.isManager },
+    { screen: 'department', label: 'Department PMS', icon: Building2, visible: user.departmentHeadStatus === 'Head' },
+    { screen: 'generate', label: 'Create PMS Submissions', icon: FilePlus2, visible: user.isHrAdmin },
+    { screen: 'all', label: 'All 2027 Submissions', icon: ListChecks, visible: user.isHrAdmin },
+    { screen: 'phase', label: 'Phase Control', icon: Milestone, visible: user.isHrAdmin },
+    { screen: 'mappings', label: 'RoleCategory Mapping', icon: UserCog, visible: user.isHrAdmin || user.departmentHeadStatus === 'Head' }
+  ] : [];
+
+  const accessLabel = user?.isHrAdmin ? 'HR Admin' : user?.isItAdmin ? 'IT System Admin' : user?.departmentHeadStatus === 'Head'
+    ? 'Department Head' : user?.isManager ? 'Line Manager' : 'Employee';
+
   function scorecardList(items: ScorecardSummary[], emptyMessage: string) {
-    if (items.length === 0) return <p>{emptyMessage}</p>;
-    return <div className="table-scroll"><table>
+    if (items.length === 0) return <div className="empty-state"><span aria-hidden="true">0</span><div><strong>No records yet</strong><p>{emptyMessage}</p></div></div>;
+    return <div className="table-scroll"><table className="data-table">
       <thead><tr><th scope="col">Employee</th><th scope="col">Form</th><th scope="col">Phase</th><th scope="col">Status</th><th scope="col">Pending participant</th><th scope="col">Action</th></tr></thead>
       <tbody>{items.map((item) => <tr key={item.id}>
-        <td>{item.employeeName}<small>{item.employeeNumber}</small></td><td>{formNames[item.formType] ?? item.formType}</td>
-        <td>{item.currentPhase}</td><td>{item.status}</td><td>{item.pendingParticipant ?? 'None'}{item.currentAssigneeEmployeeNumber ? <small>{item.currentAssigneeEmployeeNumber}</small> : null}</td>
-        <td><button type="button" onClick={() => openScorecard(item.id)}>Open {item.employeeName}</button></td>
+        <td><strong>{item.employeeName}</strong><small className="utility-text">{item.employeeNumber}</small></td><td>{formNames[item.formType] ?? item.formType}</td>
+        <td><span className="phase-label">{phaseLabels[item.currentPhase as keyof typeof phaseLabels] ?? item.currentPhase}</span></td><td><span className="status-chip">{item.status}</span></td><td>{item.pendingParticipant ?? 'None'}{item.currentAssigneeEmployeeNumber ? <small className="utility-text">{item.currentAssigneeEmployeeNumber}</small> : null}</td>
+        <td><button className="table-action" type="button" onClick={() => openScorecard(item.id)}>Open {item.employeeName}<ArrowRight size={15} aria-hidden="true" /></button></td>
       </tr>)}</tbody>
     </table></div>;
   }
 
   if (loading && !user) {
-    return <main className="page-shell"><p role="status">Loading PMS...</p></main>;
+    return <WorkflowLoader />;
   }
 
   if (!user) {
     return (
-      <main className="page-shell">
-        <section className="welcome-card" aria-labelledby="page-title">
-          <p className="eyebrow">Depa United Group</p>
-          <h1 id="page-title">PMS 2027</h1>
-          <p>Enter a valid employee number to use the development test login.</p>
-          <form onSubmit={login}>
-            <label htmlFor="employee-number">Employee Number</label>
-            <input
-              id="employee-number"
-              name="employeeNumber"
-              value={employeeNumber}
-              onChange={(event) => setEmployeeNumber(event.target.value)}
-              autoComplete="username"
-              required
-            />
-            <button type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Test Login'}</button>
-          </form>
-          {error && <p role="alert" className="error-message">{error}</p>}
-          <p className="security-note">Passwordless test identity for controlled development use only.</p>
+      <main className="login-shell">
+        <section className="login-frame" aria-labelledby="page-title">
+          <div className="login-context">
+            <Brand />
+            <div className="login-thesis">
+              <p className="eyebrow eyebrow-light">2027 performance cycle</p>
+              <h1 id="page-title">PMS 2027</h1>
+              <p>One clear record for goals, reviews, ratings, and development.</p>
+            </div>
+            <PhaseSpine activePhase="GoalSetting" />
+          </div>
+          <div className="login-entry">
+            <div className="login-heading">
+              <span className="login-index utility-text">01 / TEST ACCESS</span>
+              <h2>Enter your workspace</h2>
+              <p>Use any eligible Oracle employee number.</p>
+            </div>
+            <form className="login-form" onSubmit={login}>
+              <label htmlFor="employee-number">Employee Number</label>
+              <div className="input-with-action">
+                <input
+                  id="employee-number"
+                  name="employeeNumber"
+                  value={employeeNumber}
+                  onChange={(event) => setEmployeeNumber(event.target.value)}
+                  autoComplete="username"
+                  inputMode="numeric"
+                  placeholder="e.g. 12245"
+                  required
+                />
+                <button type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Test Login'}<ArrowRight size={18} aria-hidden="true" /></button>
+              </div>
+            </form>
+            {error && <p role="alert" className="error-message">{error}</p>}
+            <div className="security-note"><ShieldCheck size={17} aria-hidden="true" /><p><strong>Development access</strong><span>Passwordless test identity for controlled development use only.</span></p></div>
+          </div>
         </section>
       </main>
     );
   }
 
   return (
-    <div className="app-shell">
-      <header>
-        <div><span className="brand-mark">PMS</span><span>2027</span></div>
-        <nav aria-label="Primary navigation">
-          <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('home')}>My PMS</button>
-          {user.isManager && <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('team')}>My Team</button>}
-          {user.departmentHeadStatus === 'Head' && <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('department')}>Department PMS</button>}
-          {user.isHrAdmin && <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('generate')}>Create PMS Submissions</button>}
-          {user.isHrAdmin && <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('all')}>All 2027 Submissions</button>}
-          {user.isHrAdmin && <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('phase')}>Phase Control</button>}
-          {(user.isHrAdmin || user.departmentHeadStatus === 'Head') && <button className="nav-button" type="button" disabled={actionBusy} onClick={() => openScreen('mappings')}>RoleCategory Mapping</button>}
+    <div className={`app-shell ${navigationCollapsed ? 'navigation-collapsed' : ''}`}>
+      <aside className="navigation-shell">
+        <div className="navigation-brand"><Brand compact /><button
+          className="navigation-toggle"
+          type="button"
+          aria-label={navigationCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+          aria-expanded={!navigationCollapsed}
+          onClick={toggleNavigation}
+        >{navigationCollapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}</button></div>
+        <nav aria-label="Primary navigation" className="primary-navigation">
+          {navigationItems.filter((item) => item.visible).map(({ screen: destination, label, icon: Icon }) => <button
+            key={destination}
+            className={`nav-button ${screen === destination || destination === 'home' && screen === 'scorecard' ? 'nav-button-active' : ''}`}
+            type="button"
+            disabled={actionBusy}
+            aria-current={screen === destination ? 'page' : undefined}
+            aria-label={navigationCollapsed ? label : undefined}
+            title={navigationCollapsed ? label : undefined}
+            onClick={() => openScreen(destination)}
+          ><Icon size={18} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span></button>)}
         </nav>
-        <button className="secondary-button" type="button" disabled={actionBusy} onClick={logout}>Logout</button>
-      </header>
-      <main className="content">
-        {screen === 'home' && <>
-          <p className="eyebrow">Home / My PMS</p>
-          <h1>Welcome, {user.fullName}</h1>
+        <div className="navigation-cycle"><span className="utility-text">2027 cycle</span><PhaseSpine activePhase={activePhase} compact /></div>
+        <div className="user-context">
+          <div className="user-avatar" aria-hidden="true">{user.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</div>
+          <div><strong>{user.fullName}</strong><span>{accessLabel}</span></div>
+          <button className="icon-button" type="button" disabled={actionBusy} onClick={logout} aria-label="Logout"><LogOut size={17} aria-hidden="true" /></button>
+        </div>
+      </aside>
+      <div className="workspace">
+        <header className="workspace-header">
+          <div><span className="utility-text">Depa United Group</span><strong>Performance management system</strong></div>
+          <div className="workspace-phase"><span>{phaseLabels[activePhase as keyof typeof phaseLabels] ?? activePhase}</span><small>Current phase</small></div>
+        </header>
+        <main className={`content ${screen === 'home' ? 'content-home' : ''}`}>
+        {screen === 'home' && <section className="screen-section home-screen" aria-labelledby="home-title">
+          <div className="screen-heading"><div><p className="eyebrow">Home / My PMS</p><h1 id="home-title">Welcome, {user.fullName}</h1><p>Your current record, ownership, and next workflow action.</p></div></div>
           <dl className="identity-card">
-            <div><dt>Employee Number</dt><dd>{user.employeeNumber}</dd></div>
+            <div><dt>Employee number</dt><dd className="utility-text">{user.employeeNumber}</dd></div>
             <div><dt>Department</dt><dd>{user.department ?? 'Not available'}</dd></div>
-            <div><dt>Access</dt><dd>{user.isHrAdmin ? 'HR Admin' : user.isItAdmin ? 'IT System Admin' : user.departmentHeadStatus === 'Head' ? 'Department Head' : user.isManager ? 'Line Manager' : 'Employee'}</dd></div>
+            <div><dt>Cycle position</dt><dd>{phaseLabels[activePhase as keyof typeof phaseLabels] ?? activePhase}</dd></div>
           </dl>
-          {scorecardList(scorecards.filter((item) => item.employeeNumber === user.employeeNumber), 'No 2027 PMS submission has been generated for this employee yet.')}
-        </>}
+          <div className="content-panel"><div className="panel-heading"><div><span className="utility-text">2027 RECORD</span><h2>My submission</h2></div><span>{scorecards.filter((item) => item.employeeNumber === user.employeeNumber).length} record</span></div>
+            {scorecardList(scorecards.filter((item) => item.employeeNumber === user.employeeNumber), 'No 2027 PMS submission has been generated for this employee yet.')}
+          </div>
+        </section>}
 
-        {screen === 'team' && <section aria-labelledby="team-title">
-          <p className="eyebrow">Line Manager</p><h1 id="team-title">My Team</h1>
+        {screen === 'team' && <section className="screen-section" aria-labelledby="team-title">
+          <div className="screen-heading"><div><p className="eyebrow">Line Manager</p><h1 id="team-title">My Team</h1><p>Review direct reports and act when a submission is pending with you.</p></div></div>
           {scorecardList(scorecards.filter((item) => item.employeeNumber !== user.employeeNumber), 'No direct-report submissions are available.')}
         </section>}
 
-        {screen === 'department' && <section aria-labelledby="department-title">
-          <p className="eyebrow">Department Head</p><h1 id="department-title">Department PMS</h1>
+        {screen === 'department' && <section className="screen-section" aria-labelledby="department-title">
+          <div className="screen-heading"><div><p className="eyebrow">Department Head</p><h1 id="department-title">Department PMS</h1><p>{user.department ?? 'Your department'} submissions for the active 2027 cycle.</p></div></div>
           {scorecardList(scorecards.filter((item) => item.department === user.department), 'No department submissions are available.')}
         </section>}
 
-        {screen === 'all' && <section aria-labelledby="all-title">
-          <p className="eyebrow">HR</p><h1 id="all-title">All 2027 Submissions</h1>
+        {screen === 'all' && <section className="screen-section" aria-labelledby="all-title">
+          <div className="screen-heading"><div><p className="eyebrow">HR</p><h1 id="all-title">All 2027 Submissions</h1><p>Every generated scorecard in the current performance cycle.</p></div><span className="record-count utility-text">{scorecards.length.toString().padStart(2, '0')} RECORDS</span></div>
           {scorecardList(scorecards, 'No submissions have been generated.')}
         </section>}
 
-        {screen === 'phase' && <section aria-labelledby="phase-title">
-          <p className="eyebrow">HR</p><h1 id="phase-title">Phase Control</h1>
-          {cycle && <div className="phase-card"><dl><div><dt>Cycle</dt><dd>{cycle.name}</dd></div><div><dt>Current phase</dt><dd>{cycle.current_phase}</dd></div><div><dt>Status</dt><dd>{cycle.status}</dd></div></dl>
-            {cycle.current_phase !== 'Closed' && <button type="button" onClick={advancePhase}>Open next phase</button>}
+        {screen === 'phase' && <section className="screen-section" aria-labelledby="phase-title">
+          <div className="screen-heading"><div><p className="eyebrow">HR control</p><h1 id="phase-title">Phase Control</h1><p>Advance the cycle only after every eligible scorecard completes the current phase.</p></div></div>
+          {cycle && <div className="phase-card"><div className="phase-card-top"><dl><div><dt>Cycle</dt><dd>{cycle.name}</dd></div><div><dt>Current phase</dt><dd>{cycle.current_phase}</dd></div><div><dt>Status</dt><dd><span className="status-chip">{cycle.status}</span></dd></div></dl>
+            {cycle.current_phase !== 'Closed' && <button type="button" onClick={advancePhase}>Open next phase<ArrowRight size={17} aria-hidden="true" /></button>}</div>
+            <PhaseSpine activePhase={cycle.current_phase} />
           </div>}
           {operationMessage && <p role="status" className="summary">{operationMessage}</p>}
         </section>}
 
-        {screen === 'generate' && <section aria-labelledby="generation-title">
-          <p className="eyebrow">HR</p>
-          <h1 id="generation-title">Create PMS Submissions</h1>
+        {screen === 'generate' && <section className="screen-section" aria-labelledby="generation-title">
+          <div className="screen-heading"><div><p className="eyebrow">HR workspace</p><h1 id="generation-title">Create PMS Submissions</h1><p>Preview assignments first. Generate only rows that pass every assignment rule.</p></div></div>
           <div className="toolbar">
-            <label htmlFor="department">Department</label>
-            <select id="department" value={department} onChange={(event) => setDepartment(event.target.value)}>
-              {departments.map((item) => <option key={item}>{item}</option>)}
-            </select>
-            <button type="button" onClick={populate}>Populate</button>
-            {population.length > 0 && <button type="button" onClick={generate} disabled={selected.length === 0}>Generate selected</button>}
+            <label htmlFor="department">Department<select id="department" value={department} onChange={(event) => setDepartment(event.target.value)}>
+                {departments.map((item) => <option key={item}>{item}</option>)}
+              </select></label>
+            <button type="button" onClick={populate}>Populate<FilePlus2 size={16} aria-hidden="true" /></button>
+            {population.length > 0 && <button className="secondary-action" type="button" onClick={generate} disabled={selected.length === 0}>Generate selected<ArrowRight size={16} aria-hidden="true" /></button>}
           </div>
           {summary && <p role="status" className="summary">{summary.created} Created · {summary.alreadyExisting} Already Exists · {summary.validationFailed} Validation Failed</p>}
-          {population.length > 0 && <div className="table-scroll"><table>
+          {population.length > 0 && <div className="table-scroll"><table className="data-table population-table">
             <thead><tr><th scope="col">Select</th><th scope="col">Employee</th><th scope="col">Grade</th><th scope="col">Employer / Classification</th><th scope="col">Department Head</th><th scope="col">RoleCategory</th><th scope="col">Manager</th><th scope="col">Form</th><th scope="col">Status</th></tr></thead>
             <tbody>{population.map((row) => <tr key={row.employeeNumber}>
               <td><input aria-label={`Select ${row.fullName}`} type="checkbox" disabled={row.status !== 'Ready'} checked={selected.includes(row.employeeNumber)} onChange={(event) => setSelected(event.target.checked ? [...selected, row.employeeNumber] : selected.filter((number) => number !== row.employeeNumber))} /></td>
-              <td>{row.fullName}<small>{row.employeeNumber}</small></td><td>{row.grade ?? 'Missing'}</td>
+              <td><strong>{row.fullName}</strong><small className="utility-text">{row.employeeNumber}</small></td><td>{row.grade ?? 'Missing'}</td>
               <td>{row.employerClassification === 'NotApplicable' ? row.employer ?? 'Not applicable' : row.employerClassification}</td>
               <td>{row.departmentHeadStatus}</td><td>{row.roleCategory ?? 'Not applicable'}</td><td>{row.managerName ?? 'Missing'}</td>
               <td>{row.formType ? formNames[row.formType] : 'None'}</td><td><span className={`status status-${row.status === 'Ready' ? 'ready' : 'blocked'}`}>{row.status}</span></td>
@@ -356,21 +465,18 @@ export function App() {
           </table></div>}
         </section>}
 
-        {screen === 'mappings' && <section aria-labelledby="mapping-title">
-          <p className="eyebrow">Administration</p>
-          <h1 id="mapping-title">RoleCategory Mapping</h1>
-          <form className="mapping-form" onSubmit={saveMapping}>
-            <label htmlFor="mapping-employee">Employee Number</label>
-            <input id="mapping-employee" value={mappingEmployee} onChange={(event) => setMappingEmployee(event.target.value)} required />
-            <label htmlFor="role-category">RoleCategory</label>
-            <select id="role-category" value={roleCategory} onChange={(event) => setRoleCategory(event.target.value)}>
-              <option value="ProjectDeliveryProfessional">Project Delivery / Professional</option>
-              <option value="AdministrativeSupport">Administrative / Support</option>
-            </select>
-            <button type="submit">Save mapping</button>
+        {screen === 'mappings' && <section className="screen-section" aria-labelledby="mapping-title">
+          <div className="screen-heading"><div><p className="eyebrow">Administration</p><h1 id="mapping-title">RoleCategory Mapping</h1><p>Classify eligible employees before HR generates their scorecards.</p></div></div>
+          <form className="mapping-form content-panel" onSubmit={saveMapping}>
+            <div className="mapping-field"><label htmlFor="mapping-employee">Employee Number</label><input id="mapping-employee" value={mappingEmployee} onChange={(event) => setMappingEmployee(event.target.value)} required /></div>
+            <div className="mapping-field"><label htmlFor="role-category">RoleCategory</label><select id="role-category" value={roleCategory} onChange={(event) => setRoleCategory(event.target.value)}>
+                <option value="ProjectDeliveryProfessional">Project Delivery / Professional</option>
+                <option value="AdministrativeSupport">Administrative / Support</option>
+              </select></div>
+            <button type="submit">Save mapping<ArrowRight size={16} aria-hidden="true" /></button>
           </form>
           {operationMessage && <p role="status" className="summary">{operationMessage}</p>}
-          <div className="table-scroll"><table>
+          <div className="table-scroll"><table className="data-table">
             <thead><tr><th scope="col">Employee Number</th><th scope="col">Department</th><th scope="col">RoleCategory</th></tr></thead>
             <tbody>{mappings.map((mapping) => <tr key={mapping.employee_number}><td>{mapping.employee_number}</td><td>{mapping.department}</td><td>{mapping.role_category}</td></tr>)}</tbody>
           </table></div>
@@ -384,6 +490,7 @@ export function App() {
         />}
         {error && <p role="alert" className="error-message">{error}</p>}
       </main>
+      </div>
     </div>
   );
 }
