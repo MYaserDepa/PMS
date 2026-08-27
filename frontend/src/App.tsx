@@ -89,8 +89,8 @@ function Brand({ compact = false }: { compact?: boolean }) {
   </div>;
 }
 
-function PhaseSpine({ activePhase, compact = false }: { activePhase: string; compact?: boolean }) {
-  const activeIndex = Math.max(0, phaseOrder.indexOf(activePhase as (typeof phaseOrder)[number]));
+function PhaseSpine({ activePhase, compact = false }: { activePhase: string | null; compact?: boolean }) {
+  const activeIndex = activePhase === null ? -1 : phaseOrder.indexOf(activePhase as (typeof phaseOrder)[number]);
   return <ol className={`phase-spine ${compact ? 'phase-spine-compact' : ''}`} aria-label="2027 performance cycle">
     {phaseOrder.map((phase, index) => <li key={phase} className={index < activeIndex ? 'phase-complete' : index === activeIndex ? 'phase-current' : ''}>
       <span className="phase-node" aria-hidden="true">{index < activeIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
@@ -188,6 +188,7 @@ export function App() {
 
   function resetSessionCache() {
     memoryCache.current = createMemoryCache();
+    memoryCache.current.cycleLoaded = cycle !== null;
     setDepartments([]);
     setDepartment('');
     setPopulation([]);
@@ -197,7 +198,6 @@ export function App() {
     setMappingEmployees([]);
     setMappingEdits({});
     setScorecards([]);
-    setCycle(null);
     setScorecardDetail(null);
     setStrategyReferences([]);
   }
@@ -215,17 +215,24 @@ export function App() {
   }
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/auth/session`, { credentials: 'include' })
-      .then(async (response) => response.ok ? response.json() as Promise<{ user: CurrentUser }> : null)
-      .then(async (result) => {
+    Promise.all([
+      fetch(`${apiBaseUrl}/auth/session`, { credentials: 'include' }),
+      fetch(`${apiBaseUrl}/cycle`)
+    ])
+      .then(async ([sessionResponse, cycleResponse]) => {
+        const result = sessionResponse.ok ? await sessionResponse.json() as { user: CurrentUser } : null;
+        if (cycleResponse.ok) {
+          setCycle(((await cycleResponse.json()) as { cycle: Cycle }).cycle);
+          memoryCache.current.cycleLoaded = true;
+        }
         const restoredUser = result?.user ?? null;
         if (restoredUser) {
           setScreenBusy('Getting submissions');
           setUser(restoredUser);
           try {
-            const response = await fetch(`${apiBaseUrl}/scorecards`, { credentials: 'include' });
-            if (response.ok) {
-              setScorecards(((await response.json()) as { scorecards: ScorecardSummary[] }).scorecards);
+            const scorecardResponse = await fetch(`${apiBaseUrl}/scorecards`, { credentials: 'include' });
+            if (scorecardResponse.ok) {
+              setScorecards(((await scorecardResponse.json()) as { scorecards: ScorecardSummary[] }).scorecards);
               memoryCache.current.scorecardsLoaded = true;
             }
           } finally {
@@ -520,7 +527,7 @@ export function App() {
   }
 
   const ownScorecard = user ? scorecards.find((item) => item.employeeNumber === user.employeeNumber) : null;
-  const activePhase = scorecardDetail?.current_phase ?? cycle?.current_phase ?? ownScorecard?.currentPhase ?? 'GoalSetting';
+  const activePhase = cycle?.current_phase ?? scorecardDetail?.current_phase ?? ownScorecard?.currentPhase ?? 'GoalSetting';
   const navigationItems: NavigationItem[] = user ? [
     { screen: 'home', label: 'My PMS', icon: House, visible: true },
     { screen: 'team', label: 'My Team', icon: UsersRound, visible: user.isManager },
@@ -554,7 +561,7 @@ export function App() {
               <h1 id="page-title">PMS 2027</h1>
               <p>One clear record for goals, reviews, ratings, and development.</p>
             </div>
-            <PhaseSpine activePhase="GoalSetting" />
+            <PhaseSpine activePhase={cycle?.current_phase ?? null} />
           </div>
           <div className="login-entry">
             <div className="login-heading">

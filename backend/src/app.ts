@@ -298,9 +298,8 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
     }
   });
 
-  app.get('/api/cycle', async (request, response, next) => {
+  app.get('/api/cycle', async (_request, response, next) => {
     try {
-      await requireCurrentUser(request);
       const result = await getPool().query(
         "SELECT year, name, status, current_phase FROM performance_cycles WHERE year = 2027"
       );

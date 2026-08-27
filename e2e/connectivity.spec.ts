@@ -56,12 +56,19 @@ test('scenario 1: valid test login, session restoration, logout, and invalid fee
     await new Promise((resolve) => setTimeout(resolve, 350));
     await route.continue();
   });
+  await page.route('**/api/cycle', (route) => route.fulfill({
+    json: { cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'MidYear' } }
+  }));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'PMS 2027' })).toBeVisible();
+  await expect(page.locator('.login-context .phase-spine .phase-current')).toContainText('Mid-year');
+  await expect(page.locator('.login-context .phase-spine .phase-current')).not.toContainText('Goals');
   await page.getByLabel('Employee Number').fill('12245');
   await page.getByRole('button', { name: 'Test Login' }).click();
   await expect(page.getByRole('status')).toContainText('Getting submissions');
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
+  await expect(page.locator('.phase-spine .phase-current')).toContainText('Mid-year');
+  await expect(page.locator('.phase-spine .phase-current')).not.toContainText('Goals');
   await expect(page.locator('.user-context')).toContainText('Test Position');
   await expect(page.locator('.user-context')).not.toContainText('P-100');
   await expect(page.locator('.user-context')).not.toContainText('HR Admin');

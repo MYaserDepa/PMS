@@ -18,4 +18,9 @@ describe('health API', () => {
     expect(response.body).toEqual({ status: 'ok', service: 'pms-backend' });
     expect(JSON.stringify(response.body)).not.toContain(config.ORACLE_BEARER_TOKEN);
   });
+
+  it('returns the current cycle phase without a login session', async () => {
+    const response = await request(createApp(config)).get('/api/cycle').expect(200);
+    expect(response.body.cycle).toMatchObject({ year: 2027, current_phase: 'GoalSetting' });
+  });
 });

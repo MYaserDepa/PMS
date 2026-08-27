@@ -103,7 +103,6 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
     await route.continue();
   });
   await page.getByRole('button', { name: 'Phase Control' }).click();
-  await expect(page.getByRole('status')).toContainText('Loading phase control');
   await expect(page.getByRole('button', { name: 'Open next phase' })).toBeVisible();
   await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
   await expect(page.getByRole('status')).toContainText('Loading departments');
@@ -112,7 +111,7 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expect(page.getByRole('status')).toHaveCount(0);
   await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
   await expect(page.getByRole('status')).toHaveCount(0);
-  expect(cycleRequests).toBe(1);
+  expect(cycleRequests).toBe(0);
   expect(departmentRequests).toBe(1);
 
   await page.getByRole('button', { name: 'Role Category Mapping' }).click();

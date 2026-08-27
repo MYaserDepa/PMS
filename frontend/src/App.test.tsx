@@ -25,12 +25,17 @@ describe('App', () => {
     };
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'MidYear' } }) })
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user: currentUser }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) }));
     render(<App />);
+    await waitFor(() => expect(document.querySelector('.login-context .phase-spine .phase-current')).toHaveTextContent('Mid-year'));
+    expect(document.querySelector('.login-context .phase-spine .phase-current')).not.toHaveTextContent('Goals');
     fireEvent.change(await screen.findByLabelText('Employee Number'), { target: { value: '12245' } });
     fireEvent.click(screen.getByRole('button', { name: 'Test Login' }));
     expect(await screen.findByRole('heading', { name: 'Welcome, Hana Admin' })).toBeInTheDocument();
+    expect(document.querySelector('.phase-spine .phase-current')).toHaveTextContent('Mid-year');
+    expect(document.querySelector('.phase-spine .phase-current')).not.toHaveTextContent('Goals');
     expect(screen.getByText('HR Director')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create PMS Submissions' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Role Category Mapping' })).toBeInTheDocument();
@@ -55,6 +60,7 @@ describe('App', () => {
         await scorecardsReady;
         return { ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) };
       }
+      if (url.endsWith('/cycle')) return { ok: true, status: 200, json: () => Promise.resolve({ cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'GoalSetting' } }) };
       throw new Error(`Unexpected request: ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -80,6 +86,7 @@ describe('App', () => {
     }];
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'GoalSetting' } }) })
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ scorecards }) }));
     render(<App />);
 
@@ -135,6 +142,7 @@ describe('App', () => {
     ];
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ user }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'GoalSetting' } }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ departments: ['Delivery'] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ rows }) }));
@@ -159,6 +167,7 @@ describe('App', () => {
     ];
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ user }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'GoalSetting' } }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ departments: ['Delivery'] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ employees }) }));
