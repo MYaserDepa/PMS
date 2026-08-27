@@ -21,6 +21,19 @@ describe('Oracle employee client', () => {
     }));
   });
 
+  it('adds a server-side employee filter to the configured eligible-employee query', async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ items: [oracleEmployees[3]] }));
+    const client = new OracleClient({
+      ...config,
+      ORACLE_EMPLOYEE_URL: `${config.ORACLE_EMPLOYEE_URL}?$select=EMPLOYEE_NUMBER,FULL_NAME&$filter=USER_EXISTS%20eq%20'Y'`
+    }, request);
+
+    await expect(client.getEmployee('18001')).resolves.toMatchObject({ EMPLOYEE_NUMBER: '18001' });
+    const requestedUrl = new URL(String(request.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get('$select')).toBe('EMPLOYEE_NUMBER,FULL_NAME');
+    expect(requestedUrl.searchParams.get('$filter')).toBe("USER_EXISTS eq 'Y' and EMPLOYEE_NUMBER eq '18001'");
+  });
+
   it('rejects unknown, empty, malformed, unauthorized, and unavailable responses clearly', async () => {
     const unknown = new OracleClient(config, vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ items: oracleEmployees })));
     await expect(unknown.getEmployee('DOES-NOT-EXIST')).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_FOUND', statusCode: 404 });

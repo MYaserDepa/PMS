@@ -42,8 +42,4 @@ export class IdentityService {
   async login(employeeNumber: string): Promise<CurrentUser> {
     return this.currentUser(await this.oracle.getEmployee(employeeNumber));
   }
-
-  async restore(employeeNumber: string): Promise<CurrentUser> {
-    return this.currentUser(await this.oracle.getEmployee(employeeNumber));
-  }
 }

@@ -802,6 +802,19 @@ Goal: avoid repeated page requests during one login and keep request feedback sm
 - [x] Frontend unit, build, lint, and type checks pass.
 - [x] Browser review confirms the compact loader and in-memory page reuse at desktop and mobile sizes.
 
+## Milestone 16: session identity request performance
+
+Goal: keep the trusted login identity in the server session and avoid full-population Oracle reads for individual login lookup.
+
+- [x] Fetch the login employee with an Oracle `EMPLOYEE_NUMBER` OData filter while retaining the configured eligibility filter.
+- [x] Store the resolved `CurrentUser` in the server-side session and reuse it for session restoration and protected API authorization.
+- [x] Verify that session restoration and protected local workflows make no Oracle identity requests after login.
+
+### Milestone 16 gate
+
+- [x] Backend unit, API integration, build, lint, and type checks pass.
+- [x] Browser login, refresh/session restoration, role category, and submission workflow paths pass.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

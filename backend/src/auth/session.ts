@@ -1,18 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
+import type { CurrentUser } from './service.js';
 
 const cookieName = 'pms_session';
 
 export class SessionStore {
-  private readonly sessions = new Map<string, string>();
+  private readonly sessions = new Map<string, CurrentUser>();
 
-  create(employeeNumber: string): string {
+  create(user: CurrentUser): string {
     const id = randomUUID();
-    this.sessions.set(id, employeeNumber);
+    this.sessions.set(id, user);
     return id;
   }
 
-  employeeNumber(id: string | undefined): string | null {
+  currentUser(id: string | undefined): CurrentUser | null {
     return id ? this.sessions.get(id) ?? null : null;
   }
 

@@ -59,7 +59,15 @@ export function createOracleFixtureFetch(urls: {
 }): typeof fetch {
   return async (input) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-    if (url === urls.employee) return jsonResponse({ items: fixtureEmployees });
+    const requestedUrl = new URL(url);
+    const employeeUrl = new URL(urls.employee);
+    if (requestedUrl.origin === employeeUrl.origin && requestedUrl.pathname === employeeUrl.pathname) {
+      const employeeNumber = requestedUrl.searchParams.get('$filter')?.match(/EMPLOYEE_NUMBER eq '([^']+)'/)?.[1];
+      const employees = employeeNumber
+        ? fixtureEmployees.filter((employee) => employee.EMPLOYEE_NUMBER === employeeNumber)
+        : fixtureEmployees;
+      return jsonResponse({ items: employees });
+    }
     if (url === urls.departmentHead) return jsonResponse({ items: fixtureDepartmentHeads });
     if (url === urls.employerMapping) return jsonResponse(employerMappingPayload());
     return jsonResponse({ error: 'Unknown fixture URL' }, 404);

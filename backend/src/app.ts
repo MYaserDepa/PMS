@@ -43,27 +43,21 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
     try {
       const body = z.object({ employeeNumber: z.union([z.string(), z.number()]).transform(String).pipe(z.string().trim().min(1)) }).parse(request.body);
       const user = await identity.login(body.employeeNumber);
-      setSessionCookie(response, sessions.create(user.employeeNumber), config.NODE_ENV === 'production');
+      setSessionCookie(response, sessions.create(user), config.NODE_ENV === 'production');
       response.json({ user });
     } catch (error) {
       next(error);
     }
   });
 
-  app.get('/api/auth/session', async (request, response, next) => {
+  app.get('/api/auth/session', (request, response) => {
     const sessionId = readSessionId(request);
-    const employeeNumber = sessions.employeeNumber(sessionId);
-    if (!employeeNumber) {
+    const user = sessions.currentUser(sessionId);
+    if (!user) {
       response.status(401).json({ error: { code: 'NOT_AUTHENTICATED', message: 'No active test session' } });
       return;
     }
-    try {
-      response.json({ user: await identity.restore(employeeNumber) });
-    } catch (error) {
-      sessions.delete(sessionId);
-      clearSessionCookie(response, config.NODE_ENV === 'production');
-      next(error);
-    }
+    response.json({ user });
   });
 
   app.post('/api/auth/logout', (request, response) => {
@@ -73,9 +67,9 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
   });
 
   async function requireCurrentUser(request: express.Request) {
-    const employeeNumber = sessions.employeeNumber(readSessionId(request));
-    if (!employeeNumber) throw new ApplicationError('No active test session', 401, 'NOT_AUTHENTICATED');
-    return identity.restore(employeeNumber);
+    const user = sessions.currentUser(readSessionId(request));
+    if (!user) throw new ApplicationError('No active test session', 401, 'NOT_AUTHENTICATED');
+    return user;
   }
 
   async function roleCategoryDepartments(user: CurrentUser): Promise<string[]> {

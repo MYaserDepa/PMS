@@ -30,11 +30,23 @@ describe('test identity API', () => {
   });
 
   it('restores and logs out a session', async () => {
-    const agent = request.agent(fixtureApp());
+    const oracle = createFixtureOracleClient(config);
+    const getEmployee = vi.spyOn(oracle, 'getEmployee');
+    const listEmployees = vi.spyOn(oracle, 'listEmployees');
+    const listDepartmentHeads = vi.spyOn(oracle, 'listDepartmentHeads');
+    const agent = request.agent(createApp(config, { oracle }));
     await agent.post('/api/auth/login').send({ employeeNumber: '17002' }).expect(200);
+    expect(getEmployee).toHaveBeenCalledTimes(1);
+    getEmployee.mockClear();
+    listEmployees.mockClear();
+    listDepartmentHeads.mockClear();
     await agent.get('/api/auth/session').expect(200).expect(({ body }) => {
       expect(body.user.employeeNumber).toBe('17002');
     });
+    await agent.get('/api/scorecards').expect(200);
+    expect(getEmployee).not.toHaveBeenCalled();
+    expect(listEmployees).not.toHaveBeenCalled();
+    expect(listDepartmentHeads).not.toHaveBeenCalled();
     await agent.post('/api/auth/logout').expect(204);
     await agent.get('/api/auth/session').expect(401);
   });
@@ -64,7 +76,7 @@ describe('test identity API', () => {
     const unavailableHeadOracle = new OracleClient(config, async (input) => {
       const url = String(input);
       if (url === config.ORACLE_DEPARTMENT_HEAD_URL) return jsonResponse({}, 503);
-      if (url === config.ORACLE_EMPLOYEE_URL) return jsonResponse({ items: fixtureEmployees });
+      if (url.startsWith(config.ORACLE_EMPLOYEE_URL)) return jsonResponse({ items: fixtureEmployees });
       return jsonResponse({ items: fixtureDepartmentHeads });
     });
     const response = await request(createApp(config, { oracle: unavailableHeadOracle }))

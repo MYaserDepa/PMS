@@ -38,19 +38,35 @@ export class OracleClient {
     }
   }
 
-  async listEmployees(department?: string): Promise<OracleEmployee[]> {
-    const payload = await this.get(this.config.ORACLE_EMPLOYEE_URL, 'Employee lookup');
-    let employees: OracleEmployee[];
+  private employees(payload: unknown): OracleEmployee[] {
     try {
-      employees = extractCollection(payload).map((record) => oracleEmployeeSchema.parse(record));
+      return extractCollection(payload).map((record) => oracleEmployeeSchema.parse(record));
     } catch {
       throw new ApplicationError('Employee lookup returned an invalid payload', 502, 'ORACLE_INVALID_EMPLOYEE_PAYLOAD');
     }
+  }
+
+  private employeeUrl(employeeNumber: string): string {
+    const url = new URL(this.config.ORACLE_EMPLOYEE_URL);
+    const existingFilter = url.searchParams.get('$filter');
+    const escapedEmployeeNumber = employeeNumber.trim().replaceAll("'", "''");
+    const employeeFilter = `EMPLOYEE_NUMBER eq '${escapedEmployeeNumber}'`;
+    url.searchParams.set('$filter', existingFilter ? `${existingFilter} and ${employeeFilter}` : employeeFilter);
+    return url.toString();
+  }
+
+  async listEmployees(department?: string): Promise<OracleEmployee[]> {
+    const payload = await this.get(this.config.ORACLE_EMPLOYEE_URL, 'Employee lookup');
+    const employees = this.employees(payload);
     return employees.filter((employee) => employee.USER_EXISTS === 'Y' && (!department || employee.DEPARTMENT === department));
   }
 
   async getEmployee(employeeNumber: string): Promise<OracleEmployee> {
-    const matches = (await this.listEmployees()).filter((employee) => employee.EMPLOYEE_NUMBER === employeeNumber.trim());
+    const normalizedEmployeeNumber = employeeNumber.trim();
+    const payload = await this.get(this.employeeUrl(normalizedEmployeeNumber), 'Employee lookup');
+    const matches = this.employees(payload).filter(
+      (employee) => employee.USER_EXISTS === 'Y' && employee.EMPLOYEE_NUMBER === normalizedEmployeeNumber
+    );
     if (matches.length === 0) throw new ApplicationError('Employee was not found or is not eligible', 404, 'EMPLOYEE_NOT_FOUND');
     if (matches.length > 1) throw new ApplicationError('Employee lookup returned duplicate employee numbers', 502, 'ORACLE_DUPLICATE_EMPLOYEE');
     return matches[0]!;
