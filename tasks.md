@@ -726,6 +726,7 @@ Goal: give the existing PMS workflows a compact, executive-grade interface witho
 Goal: incorporate the supplied Depa brand asset and give desktop users direct control over navigation density without adding unnecessary home-page scrolling.
 
 - [x] Move `depa-logo.png` into the frontend public assets and use it in every product wordmark.
+- [x] Use `depa-logo.png` as the website favicon.
 - [x] Add an accessible desktop navigation collapse control and persist the user's choice locally.
 - [x] Keep the desktop home screen within the available viewport whenever its content fits, while retaining normal mobile scrolling.
 
