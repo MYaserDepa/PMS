@@ -55,6 +55,7 @@ describe('scorecard visibility API', () => {
   it('applies the same authorization to list and detail routes', async () => {
     const own = await employee.get('/api/scorecards').expect(200);
     expect(own.body.scorecards.map((item: { employeeNumber: string }) => item.employeeNumber)).toEqual(['18001']);
+    expect(own.body.scorecards[0]).toMatchObject({ currentAssigneeName: 'Dalia Leader' });
     const team = await manager.get('/api/scorecards').expect(200);
     expect(team.body.scorecards.every((item: { employeeNumber: string }) => item.employeeNumber !== '30001')).toBe(true);
     expect(team.body.scorecards.some((item: { employeeNumber: string }) => item.employeeNumber === '18001')).toBe(true);
@@ -109,8 +110,9 @@ describe('transactional Employee to Line Manager workflow', () => {
       'Created', 'SavedDraft', 'Initiated', 'Rejected', 'Resubmitted', 'Approved'
     ]);
     expect(history.body.scorecard.history.find((item: { action: string }) => item.action === 'Rejected')).toMatchObject({
-      comment: 'Please revise', from_participant: 'LineManager', to_participant: 'Employee'
+      action_by_name: 'Mariam Manager', comment: 'Please revise', from_participant: 'LineManager', to_participant: 'Employee'
     });
+    expect(history.body.scorecard.history.every((item: { action_by_name: string }) => item.action_by_name.length > 0)).toBe(true);
   });
 });
 

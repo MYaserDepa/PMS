@@ -64,7 +64,7 @@ export class WorkflowService {
         } else if (participant !== 'LineManager' || row.phase_status !== 'PendingApproval') {
           throw new ApplicationError('Save as Draft is invalid in the current workflow state', 409, 'INVALID_WORKFLOW_ACTION');
         }
-        await this.history(client, row, action, actor.employeeNumber, comment, participant, participant);
+        await this.history(client, row, action, actor, comment, participant, participant);
         return;
       }
 
@@ -72,7 +72,7 @@ export class WorkflowService {
         if (participant !== 'Employee' || row.requires_resubmission || !['NotStarted', 'InProgress'].includes(row.phase_status)) {
           throw new ApplicationError('Initiate is invalid in the current workflow state', 409, 'INVALID_WORKFLOW_ACTION');
         }
-        await this.toManager(client, row, action, actor.employeeNumber, comment);
+        await this.toManager(client, row, action, actor, comment);
         return;
       }
 
@@ -80,7 +80,7 @@ export class WorkflowService {
         if (participant !== 'Employee' || !row.requires_resubmission || row.phase_status !== 'InProgress') {
           throw new ApplicationError('Resubmit is invalid in the current workflow state', 409, 'INVALID_WORKFLOW_ACTION');
         }
-        await this.toManager(client, row, action, actor.employeeNumber, comment);
+        await this.toManager(client, row, action, actor, comment);
         return;
       }
 
@@ -102,7 +102,7 @@ export class WorkflowService {
           "UPDATE scorecards SET status = 'InProgress', current_workflow_assignee_employee_number = employee_number WHERE id = $1",
           [scorecardId]
         );
-        await this.history(client, row, action, actor.employeeNumber, comment, 'LineManager', 'Employee');
+        await this.history(client, row, action, actor, comment, 'LineManager', 'Employee');
         return;
       }
 
@@ -130,17 +130,23 @@ export class WorkflowService {
           [scorecardId]
         );
       }
-      await this.history(client, row, action, actor.employeeNumber, comment, 'LineManager', undefined);
+      await this.history(client, row, action, actor, comment, 'LineManager', undefined);
       if (row.current_phase === 'Development') {
         await client.query(
-          `INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number)
-           VALUES ($1, 'Development', 'Closed', $2)`, [row.id, actor.employeeNumber]
+          `INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number, action_by_name)
+           VALUES ($1, 'Development', 'Closed', $2, $3)`, [row.id, actor.employeeNumber, actor.fullName]
         );
       }
     });
   }
 
-  private async toManager(client: PoolClient, row: WorkflowRow, action: WorkflowCommand, actor: string, comment?: string) {
+  private async toManager(
+    client: PoolClient,
+    row: WorkflowRow,
+    action: WorkflowCommand,
+    actor: Pick<CurrentUser, 'employeeNumber' | 'fullName'>,
+    comment?: string
+  ) {
     await client.query(
       `UPDATE scorecard_phase_states SET status = 'PendingApproval', pending_participant = 'LineManager', requires_resubmission = FALSE
        WHERE scorecard_id = $1 AND phase = $2`, [row.id, row.current_phase]
@@ -163,16 +169,16 @@ export class WorkflowService {
     client: PoolClient,
     row: WorkflowRow,
     action: WorkflowCommand,
-    actor: string,
+    actor: Pick<CurrentUser, 'employeeNumber' | 'fullName'>,
     comment: string | undefined,
     from: 'Employee' | 'LineManager',
     to: 'Employee' | 'LineManager' | undefined
   ) {
     await client.query(
       `INSERT INTO workflow_history (
-         scorecard_id, phase, action, action_by_employee_number, comment, from_participant, to_participant
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [row.id, row.current_phase, action, actor, comment ?? null, from, to ?? null]
+         scorecard_id, phase, action, action_by_employee_number, action_by_name, comment, from_participant, to_participant
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [row.id, row.current_phase, action, actor.employeeNumber, actor.fullName, comment ?? null, from, to ?? null]
     );
   }
 }

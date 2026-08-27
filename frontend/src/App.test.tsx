@@ -20,6 +20,7 @@ describe('App', () => {
   it('logs in and renders server-derived identity', async () => {
     const currentUser = {
       employeeNumber: '12245', fullName: 'Hana Admin', department: 'Human Resources',
+      position: 'HR Director',
       isHrAdmin: true, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
     };
     vi.stubGlobal('fetch', vi.fn()
@@ -30,7 +31,7 @@ describe('App', () => {
     fireEvent.change(await screen.findByLabelText('Employee Number'), { target: { value: '12245' } });
     fireEvent.click(screen.getByRole('button', { name: 'Test Login' }));
     expect(await screen.findByRole('heading', { name: 'Welcome, Hana Admin' })).toBeInTheDocument();
-    expect(screen.getByText('HR Admin')).toBeInTheDocument();
+    expect(screen.getByText('HR Director')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create PMS Submissions' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Role Category Mapping' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Collapse navigation' }));
@@ -39,9 +40,59 @@ describe('App', () => {
     expect(window.localStorage.getItem('pms-navigation-collapsed')).toBe('true');
   });
 
+  it('shows submission loading before rendering My PMS records', async () => {
+    const user = {
+      employeeNumber: '18001', fullName: 'Dalia Leader', department: 'Delivery', position: 'P-100',
+      isHrAdmin: false, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
+    };
+    let releaseScorecards: () => void = () => {};
+    const scorecardsReady = new Promise<void>((resolve) => { releaseScorecards = resolve; });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/session')) return { ok: false };
+      if (url.endsWith('/auth/login')) return { ok: true, json: () => Promise.resolve({ user }) };
+      if (url.endsWith('/scorecards')) {
+        await scorecardsReady;
+        return { ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+
+    fireEvent.change(await screen.findByLabelText('Employee Number'), { target: { value: '18001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Test Login' }));
+    expect(await screen.findByText('Getting submissions')).toBeInTheDocument();
+    expect(screen.queryByText('No records yet')).not.toBeInTheDocument();
+    releaseScorecards();
+    expect(await screen.findByText('No records yet')).toBeInTheDocument();
+  });
+
+  it('uses the pending employee name and a concise form action', async () => {
+    const user = {
+      employeeNumber: '18001', fullName: 'Dalia Leader', department: 'Delivery', position: 'P-100',
+      isHrAdmin: false, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
+    };
+    const scorecards = [{
+      id: '10', employeeNumber: '18001', employeeName: 'Dalia Leader', department: 'Delivery',
+      formType: 'DUGLeadership', currentPhase: 'GoalSetting', status: 'InProgress',
+      currentAssigneeEmployeeNumber: '19656', currentAssigneeName: 'Layla Reviewer', pendingParticipant: 'Employee'
+    }];
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ scorecards }) }));
+    render(<App />);
+
+    const table = await screen.findByRole('table');
+    expect(table).toHaveTextContent('Layla Reviewer');
+    expect(table).not.toHaveTextContent('19656');
+    expect(screen.getByRole('button', { name: 'Open Dalia Leader' })).toHaveTextContent('Open form');
+  });
+
   it('reuses page data from memory when revisiting screens', async () => {
     const user = {
       employeeNumber: '12245', fullName: 'Hana Admin', department: 'Human Resources',
+      position: 'HR Director',
       isHrAdmin: true, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
     };
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -75,6 +126,7 @@ describe('App', () => {
   it('renders the HR Populate preview with form and validation results', async () => {
     const user = {
       employeeNumber: '12245', fullName: 'Hana Admin', department: 'Human Resources',
+      position: 'HR Director',
       isHrAdmin: true, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
     };
     const rows = [
@@ -98,6 +150,7 @@ describe('App', () => {
   it('auto-loads the only department for a Department Head mapping worklist', async () => {
     const user = {
       employeeNumber: '17001', fullName: 'Noura Head', department: 'Delivery',
+      position: 'Delivery Director',
       isHrAdmin: false, isItAdmin: false, isManager: true, departmentHeadStatus: 'Head'
     };
     const employees = [

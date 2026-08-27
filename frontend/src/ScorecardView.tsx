@@ -9,6 +9,7 @@ export interface ScorecardDetail {
   current_phase: string;
   status: string;
   current_workflow_assignee_employee_number: string | null;
+  current_assignee_name: string | null;
   pending_participant: 'Employee' | 'LineManager' | null;
   lines: Array<Record<string, unknown>>;
   standards: Array<Record<string, unknown>>;
@@ -234,7 +235,7 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
           <label>Manager Comment<textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={line.managerComment} onChange={(event) => change(index, 'managerComment', event.target.value)} /></label>
           <label>Manager Evidence Reference<input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd && (line.managerRating ?? 0) >= 4} value={line.managerEvidenceUrl} onChange={(event) => change(index, 'managerEvidenceUrl', event.target.value)} /></label>
         </>}
-        {editablePlan && <button className="remove-button" type="button" onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={15} aria-hidden="true" />Remove row {index + 1}</button>}
+        {editablePlan && <button className="remove-button" type="button" onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={15} aria-hidden="true" />Remove</button>}
       </fieldset>)}
       {editablePlan && <button className="add-row-button" type="button" onClick={() => setLines([...lines, emptyLine()])}><Plus size={17} aria-hidden="true" />Add row</button>}
     </div>}
@@ -259,7 +260,7 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
       {scorecard.history.length === 0 ? <p>No workflow history yet.</p> : <ol>{scorecard.history.map((entry) => {
         const timestamp = actionTime(entry.action_at);
         return <li key={String(entry.id)}><span className="history-node" aria-hidden="true" />
-          <div><strong>{readableLabel(entry.action)}</strong><span>{readableLabel(entry.phase)} · {String(entry.action_by_employee_number)}</span>
+          <div><strong>{readableLabel(entry.action)}</strong><span>{readableLabel(entry.phase)} · {String(entry.action_by_name)}</span>
           {timestamp ? <time dateTime={String(entry.action_at)}>{timestamp}</time> : null}
           {entry.comment ? <p>{String(entry.comment)}</p> : null}
           </div>

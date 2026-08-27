@@ -1,4 +1,4 @@
-import type { BackendConfig } from '../config.js';
+import type { CurrentUser } from '../auth/service.js';
 import { ApplicationError } from '../errors.js';
 import { assignForm, type AssignmentResult } from '../assignment/form-assignment.js';
 import { AssignmentDataService } from '../oracle/assignment-data.js';
@@ -41,8 +41,7 @@ export class PopulationService {
   private readonly assignmentData: AssignmentDataService;
 
   constructor(
-    private readonly oracle: OracleClient,
-    private readonly config: Pick<BackendConfig, 'HR_ADMIN_EMPLOYEE_NUMBER'>
+    private readonly oracle: OracleClient
   ) {
     this.assignmentData = new AssignmentDataService(oracle);
   }
@@ -141,7 +140,7 @@ export class PopulationService {
     return Promise.all(employees.map((employee) => this.resolve(employee, { departmentHeads, employerMappings })));
   }
 
-  async generate(employeeNumbers: string[]): Promise<GenerationSummary> {
+  async generate(employeeNumbers: string[], actor: Pick<CurrentUser, 'employeeNumber' | 'fullName'>): Promise<GenerationSummary> {
     const uniqueNumbers = [...new Set(employeeNumbers.map((number) => number.trim()).filter(Boolean))];
     if (uniqueNumbers.length === 0) throw new ApplicationError('Select at least one employee', 400, 'NO_EMPLOYEES_SELECTED');
     const outcomes: GenerationOutcome[] = [];
@@ -211,7 +210,8 @@ export class PopulationService {
             scorecardId: id,
             phase: 'GoalSetting',
             action: 'Created',
-            actorEmployeeNumber: this.config.HR_ADMIN_EMPLOYEE_NUMBER,
+            actorEmployeeNumber: actor.employeeNumber,
+            actorName: actor.fullName,
             toParticipant: 'Employee'
           });
           return id;

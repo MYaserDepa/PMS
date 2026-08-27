@@ -14,13 +14,19 @@ interface ScorecardRow {
   supervisor_number: string;
   department: string;
   current_workflow_assignee_employee_number: string | null;
+  current_assignee_name: string | null;
   status: string;
 }
 
 const scorecardSelect = `
   SELECT s.id, s.employee_number, e.full_name, e.department, e.supervisor_number, s.form_type,
     s.current_phase, s.status, s.current_workflow_assignee_employee_number, s.overall_rating,
-    p.pending_participant
+    p.pending_participant,
+    CASE
+      WHEN s.current_workflow_assignee_employee_number = e.employee_number THEN e.full_name
+      WHEN s.current_workflow_assignee_employee_number = e.supervisor_number THEN e.supervisor_name
+      ELSE NULL
+    END AS current_assignee_name
   FROM scorecards s
   JOIN employee_snapshots e ON e.id = s.employee_snapshot_id
   LEFT JOIN scorecard_phase_states p ON p.scorecard_id = s.id AND p.phase = s.current_phase
@@ -48,6 +54,7 @@ export class ScorecardQueryService {
       currentPhase: row.current_phase,
       status: row.status,
       currentAssigneeEmployeeNumber: row.current_workflow_assignee_employee_number,
+      currentAssigneeName: row.current_assignee_name,
       pendingParticipant: row.pending_participant,
       overallRating: row.overall_rating === null ? null : Number(row.overall_rating)
     }));

@@ -52,11 +52,18 @@ async function apiAction(page: import('@playwright/test').Page, id: string, acti
 }
 
 test('scenario 1: valid test login, session restoration, logout, and invalid feedback', async ({ page }) => {
+  await page.route('**/api/scorecards', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await route.continue();
+  });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'PMS 2027' })).toBeVisible();
   await page.getByLabel('Employee Number').fill('12245');
   await page.getByRole('button', { name: 'Test Login' }).click();
+  await expect(page.getByRole('status')).toContainText('Getting submissions');
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
+  await expect(page.locator('.user-context')).toContainText('P-100');
+  await expect(page.locator('.user-context')).not.toContainText('HR Admin');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await page.getByRole('button', { name: 'Logout' }).click();
@@ -138,6 +145,7 @@ test('role-specific submission lists and phase control expose only authorized sc
   await page.getByRole('button', { name: 'My Team' }).click();
   await expect(page.getByRole('heading', { name: 'My Team' })).toBeVisible();
   await expect(page.getByRole('table')).toContainText('Dalia Leader');
+  await expect(page.getByRole('row').filter({ hasText: 'Dalia Leader' }).getByRole('cell').nth(4)).toHaveText('Dalia Leader');
   await expect(page.getByRole('button', { name: 'Create PMS Submissions' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Logout' }).click();
 
@@ -173,7 +181,9 @@ test('all five generated form types render from the server-provided form assignm
   ];
   for (const [employeeNumber, heading] of examples) {
     await login(page, employeeNumber);
-    await page.getByRole('button', { name: new RegExp(`Open .*`) }).click();
+    const openButton = page.getByRole('button', { name: new RegExp(`Open .*`) });
+    await expect(openButton).toHaveText('Open form');
+    await openButton.click();
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
     await expect(page.getByText('Total Weight:', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Logout' }).click();
@@ -192,6 +202,8 @@ test('employee 21975 can work on their own Administrative Support scorecard', as
   await page.getByRole('button', { name: 'Save as Draft' }).click();
   const history = page.getByRole('region', { name: 'Workflow history' });
   await expect(history).toContainText('Saved Draft');
+  await expect(history).toContainText('Imran Systems');
+  await expect(history).not.toContainText('21975');
   await expect(history).not.toContainText('Employee → Employee');
 });
 
@@ -200,6 +212,7 @@ test('scenarios 7 through 9: Goal Setting draft, weight validation, rejection, r
   await login(page, '18001');
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await page.getByRole('button', { name: 'Add row' }).click();
+  await expect(page.getByRole('button', { name: 'Remove' }).first()).toHaveText('Remove');
   await expect(page.getByLabel('Weight 1')).toHaveAttribute('step', '1');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
   await expect(page.getByRole('alert')).toContainText('requires wording, a measure, and a target');

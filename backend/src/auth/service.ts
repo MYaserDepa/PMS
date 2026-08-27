@@ -7,6 +7,7 @@ export interface CurrentUser {
   employeeNumber: string;
   fullName: string;
   department: string | null;
+  position: string | null;
   isHrAdmin: boolean;
   isItAdmin: boolean;
   isManager: boolean;
@@ -32,6 +33,7 @@ export class IdentityService {
       employeeNumber: employee.EMPLOYEE_NUMBER,
       fullName: employee.FULL_NAME ?? (`${employee.FIRST_NAME ?? ''} ${employee.LAST_NAME ?? ''}`.trim() || employee.EMPLOYEE_NUMBER),
       department: employee.DEPARTMENT,
+      position: employee.POSITION ?? employee.POSITION_NAME,
       isHrAdmin: employee.EMPLOYEE_NUMBER === this.config.HR_ADMIN_EMPLOYEE_NUMBER,
       isItAdmin: employee.EMPLOYEE_NUMBER === this.config.IT_ADMIN_EMPLOYEE_NUMBER,
       isManager: employees.some((candidate) => candidate.SUPERVISOR_NO === employee.EMPLOYEE_NUMBER),

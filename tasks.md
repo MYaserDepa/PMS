@@ -830,6 +830,21 @@ Goal: let configured admin identities complete their own assigned PMS workflow a
 - [x] Backend unit, database integration, API integration, frontend component, build, lint, and type checks pass.
 - [x] Browser tests cover employee `21975`, incomplete draft rejection, exact weight validation, integer weight entry, and simplified workflow history.
 
+## Milestone 18: participant-focused UI copy
+
+Goal: identify people by their Oracle position and name while making submission actions and loading feedback concise.
+
+- [x] Show the signed-in employee's Oracle position in the navigation user context.
+- [x] Show `Getting submissions` while My PMS loads and avoid showing the empty state before the request finishes.
+- [x] Use `Open form` and `Remove` as the visible action labels.
+- [x] Show the current assignee's name as the pending participant without an employee number or participant category.
+- [x] Store the workflow actor's name through a migration and show that name in workflow history.
+
+### Milestone 18 gate
+
+- [x] Migration, backend API, frontend component, build, lint, and type checks pass.
+- [x] Browser checks validate the loading state, position label, participant names, form action, and history names.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

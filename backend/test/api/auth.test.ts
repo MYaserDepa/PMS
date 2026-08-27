@@ -24,7 +24,7 @@ describe('test identity API', () => {
     ['17001', { departmentHeadStatus: 'Head' }]
   ] as const)('logs in valid identity %s with server-derived capabilities', async (employeeNumber, capabilities) => {
     const response = await request(fixtureApp()).post('/api/auth/login').send({ employeeNumber }).expect(200);
-    expect(response.body.user).toMatchObject({ employeeNumber, ...capabilities });
+    expect(response.body.user).toMatchObject({ employeeNumber, position: 'P-100', ...capabilities });
     expect(JSON.stringify(response.body)).not.toContain(config.ORACLE_BEARER_TOKEN);
     expect(response.headers['set-cookie']?.[0]).toMatch(/pms_session=.*HttpOnly/);
   });

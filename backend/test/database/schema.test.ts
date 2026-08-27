@@ -73,7 +73,7 @@ describe('relational constraints and transactional persistence', () => {
         await store.standards.createFromTemplates(scorecardId);
         await store.phases.createInitial(scorecardId);
         await store.steps.createPhaseSteps(scorecardId, 'GoalSetting', employeeNumber, 'M-1');
-        await store.history.append({ scorecardId, phase: 'GoalSetting', action: 'Created', actorEmployeeNumber: '12245' });
+        await store.history.append({ scorecardId, phase: 'GoalSetting', action: 'Created', actorEmployeeNumber: '12245', actorName: 'Hana Admin' });
         expect(await store.standards.list(scorecardId)).toHaveLength(6);
         throw new Error('expected rollback');
       })
@@ -91,7 +91,7 @@ describe('relational constraints and transactional persistence', () => {
     ).rejects.toMatchObject({ code: '22P02' });
     await expect(
       getPool().query(
-        "INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number) VALUES (999999999, 'GoalSetting', 'Created', '12245')"
+        "INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number, action_by_name) VALUES (999999999, 'GoalSetting', 'Created', '12245', 'Hana Admin')"
       )
     ).rejects.toMatchObject({ code: '23503' });
     await expect(
@@ -128,7 +128,8 @@ describe('relational constraints and transactional persistence', () => {
         scorecardId,
         phase: 'GoalSetting',
         action: 'Created',
-        actorEmployeeNumber: '12245'
+        actorEmployeeNumber: '12245',
+        actorName: 'Hana Admin'
       });
       await expect(client.query('UPDATE workflow_history SET comment = $1 WHERE id = $2', ['changed', historyId])).rejects.toThrow(
         /append-only/

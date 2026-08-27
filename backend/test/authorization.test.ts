@@ -3,7 +3,7 @@ import { allowedLineFields, canMutateScorecard, canViewScorecard } from '../src/
 import type { CurrentUser } from '../src/auth/service.js';
 
 const employee: CurrentUser = {
-  employeeNumber: 'E1', fullName: 'Employee One', department: 'Delivery', isHrAdmin: false, isItAdmin: false,
+  employeeNumber: 'E1', fullName: 'Employee One', department: 'Delivery', position: 'Engineer', isHrAdmin: false, isItAdmin: false,
   isManager: false, departmentHeadStatus: 'NotHead'
 };
 const scorecard = {

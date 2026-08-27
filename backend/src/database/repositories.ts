@@ -202,19 +202,21 @@ export class WorkflowHistoryRepository {
     phase: PerformancePhase;
     action: string;
     actorEmployeeNumber: string;
+    actorName: string;
     comment?: string;
     fromParticipant?: 'Employee' | 'LineManager';
     toParticipant?: 'Employee' | 'LineManager';
   }): Promise<string> {
     const result = await this.database.query<{ id: string }>(
       `INSERT INTO workflow_history (
-         scorecard_id, phase, action, action_by_employee_number, comment, from_participant, to_participant
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+         scorecard_id, phase, action, action_by_employee_number, action_by_name, comment, from_participant, to_participant
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [
         input.scorecardId,
         input.phase,
         input.action,
         input.actorEmployeeNumber,
+        input.actorName,
         input.comment ?? null,
         input.fromParticipant ?? null,
         input.toParticipant ?? null

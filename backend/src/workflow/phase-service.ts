@@ -44,8 +44,8 @@ export class PhaseService {
       );
       for (const scorecard of scorecards.rows) {
         await client.query(
-          `INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number)
-           VALUES ($1, $2, 'PhaseClosed', $3)`, [scorecard.id, cycle.current_phase, actor.employeeNumber]
+          `INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number, action_by_name)
+           VALUES ($1, $2, 'PhaseClosed', $3, $4)`, [scorecard.id, cycle.current_phase, actor.employeeNumber, actor.fullName]
         );
         await client.query(
           `INSERT INTO scorecard_phase_states (scorecard_id, phase, status, pending_participant, opened_at)
@@ -62,8 +62,8 @@ export class PhaseService {
              current_workflow_assignee_employee_number = employee_number WHERE id = $1`, [scorecard.id, target]
         );
         await client.query(
-          `INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number, to_participant)
-           VALUES ($1, $2, 'PhaseOpened', $3, 'Employee')`, [scorecard.id, target, actor.employeeNumber]
+          `INSERT INTO workflow_history (scorecard_id, phase, action, action_by_employee_number, action_by_name, to_participant)
+           VALUES ($1, $2, 'PhaseOpened', $3, $4, 'Employee')`, [scorecard.id, target, actor.employeeNumber, actor.fullName]
         );
       }
       await client.query('UPDATE performance_cycles SET current_phase = $2 WHERE id = $1', [cycle.id, target]);

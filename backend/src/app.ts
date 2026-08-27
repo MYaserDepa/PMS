@@ -25,7 +25,7 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
   const oracle = dependencies.oracle ?? new OracleClient(config);
   const assignmentData = new AssignmentDataService(oracle);
   const identity = new IdentityService(oracle, assignmentData, config);
-  const population = new PopulationService(oracle, config);
+  const population = new PopulationService(oracle);
   const scorecardQueries = new ScorecardQueryService();
   const workflow = new WorkflowService();
   const phases = new PhaseService();
@@ -238,7 +238,7 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
       const user = await requireCurrentUser(request);
       if (!user.isHrAdmin) throw new ApplicationError('HR access is required', 403, 'FORBIDDEN');
       const body = z.object({ employeeNumbers: z.array(z.union([z.string(), z.number()]).transform(String)) }).parse(request.body);
-      response.json(await population.generate(body.employeeNumbers));
+      response.json(await population.generate(body.employeeNumbers, user));
     } catch (error) {
       next(error);
     }

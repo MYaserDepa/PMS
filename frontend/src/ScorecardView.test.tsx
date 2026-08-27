@@ -15,12 +15,13 @@ function detail(formType: string, overrides: Partial<ScorecardDetail> = {}): Sco
   return {
     id: '10', employee_number: '18001', full_name: 'Dalia Leader', form_type: formType,
     current_phase: 'GoalSetting', status: 'InProgress', current_workflow_assignee_employee_number: '18001',
+    current_assignee_name: 'Dalia Leader',
     pending_participant: 'Employee', lines: formType === 'AdministrativeSupport' ? [] : [line],
     standards: formType === 'AdministrativeSupport' ? [1, 2, 3, 4, 5, 6].map((id) => ({
       id: String(id), standard_name: `Standard ${id}`, expected_standard: 'Expected', weight: id === 1 ? '40' : id < 4 ? '15' : '10'
     })) : [],
     phaseStates: [{ phase: 'GoalSetting', requires_resubmission: false }],
-    history: [{ id: '1', action: 'Created', phase: 'GoalSetting', action_by_employee_number: '12245' }],
+    history: [{ id: '1', action: 'Created', phase: 'GoalSetting', action_by_employee_number: '12245', action_by_name: 'Hana Admin' }],
     overall_rating: null,
     ...overrides
   };
@@ -59,7 +60,7 @@ describe('Goal Setting controls and history', () => {
     fireEvent.change(screen.getByLabelText('Weight 2'), { target: { value: '20' } });
     expect(screen.getByText('Total Weight: 120%')).toBeInTheDocument();
     expect(screen.getByLabelText('Weight 2')).toHaveAttribute('step', '1');
-    fireEvent.click(screen.getByRole('button', { name: 'Remove row 2' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[1]!);
     expect(screen.queryByLabelText('Objective / KPI 2')).not.toBeInTheDocument();
   });
 
@@ -67,14 +68,16 @@ describe('Goal Setting controls and history', () => {
     render(<ScorecardView scorecard={detail('DUGLeadership', {
       current_workflow_assignee_employee_number: '30001', pending_participant: 'LineManager', status: 'PendingApproval',
       history: [
-        { id: '1', action: 'Created', phase: 'GoalSetting', action_by_employee_number: '12245' },
-        { id: '2', action: 'Initiated', phase: 'GoalSetting', action_by_employee_number: '18001', comment: 'A long workflow comment',
+        { id: '1', action: 'Created', phase: 'GoalSetting', action_by_employee_number: '12245', action_by_name: 'Hana Admin' },
+        { id: '2', action: 'Initiated', phase: 'GoalSetting', action_by_employee_number: '18001', action_by_name: 'Dalia Leader', comment: 'A long workflow comment',
           action_at: '2027-01-02T10:00:00.000Z', from_participant: 'Employee', to_participant: 'LineManager' }
       ]
     })} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
     expect(await screen.findByLabelText('Objective / KPI 1')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Add row' })).not.toBeInTheDocument();
     expect(screen.getByText('A long workflow comment')).toBeInTheDocument();
+    expect(screen.getByText('Goal Setting · Dalia Leader')).toBeInTheDocument();
+    expect(screen.queryByText(/18001/)).not.toBeInTheDocument();
     expect(screen.queryByText('Employee → Line Manager')).not.toBeInTheDocument();
     expect(document.querySelector('time')).toHaveAttribute('datetime', '2027-01-02T10:00:00.000Z');
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([

@@ -9,6 +9,7 @@ type CurrentUser = {
   employeeNumber: string;
   fullName: string;
   department: string | null;
+  position: string | null;
   isHrAdmin: boolean;
   isItAdmin: boolean;
   isManager: boolean;
@@ -49,6 +50,7 @@ type ScorecardSummary = {
   currentPhase: string;
   status: string;
   currentAssigneeEmployeeNumber: string | null;
+  currentAssigneeName: string | null;
   pendingParticipant: string | null;
 };
 type Cycle = { year: number; name: string; status: string; current_phase: string };
@@ -217,13 +219,20 @@ export function App() {
       .then(async (response) => response.ok ? response.json() as Promise<{ user: CurrentUser }> : null)
       .then(async (result) => {
         const restoredUser = result?.user ?? null;
-        setUser(restoredUser);
         if (restoredUser) {
-          const response = await fetch(`${apiBaseUrl}/scorecards`, { credentials: 'include' });
-          if (response.ok) {
-            setScorecards(((await response.json()) as { scorecards: ScorecardSummary[] }).scorecards);
-            memoryCache.current.scorecardsLoaded = true;
+          setScreenBusy('Getting submissions');
+          setUser(restoredUser);
+          try {
+            const response = await fetch(`${apiBaseUrl}/scorecards`, { credentials: 'include' });
+            if (response.ok) {
+              setScorecards(((await response.json()) as { scorecards: ScorecardSummary[] }).scorecards);
+              memoryCache.current.scorecardsLoaded = true;
+            }
+          } finally {
+            setScreenBusy('');
           }
+        } else {
+          setUser(null);
         }
       })
       .catch(() => setToast({ message: 'The PMS backend is unavailable.', tone: 'error' }))
@@ -250,6 +259,7 @@ export function App() {
       const result = await response.json() as { user?: CurrentUser; error?: { message: string } };
       if (!response.ok || !result.user) throw new Error(result.error?.message ?? 'Login failed');
       resetSessionCache();
+      setScreenBusy('Getting submissions');
       setUser(result.user);
       const scorecardResult = await api<{ scorecards: ScorecardSummary[] }>('/scorecards');
       setScorecards(scorecardResult.scorecards);
@@ -258,6 +268,7 @@ export function App() {
       showToast(loginError instanceof Error ? loginError.message : 'Login failed', 'error');
     } finally {
       setLoginBusy(false);
+      setScreenBusy('');
     }
   }
 
@@ -497,6 +508,7 @@ export function App() {
         currentPhase: result.scorecard.current_phase,
         status: result.scorecard.status,
         currentAssigneeEmployeeNumber: result.scorecard.current_workflow_assignee_employee_number,
+        currentAssigneeName: result.scorecard.current_assignee_name,
         pendingParticipant: result.scorecard.pending_participant
       } : item));
       showToast(`${readableLabel(action)} completed`, 'success');
@@ -519,17 +531,14 @@ export function App() {
     { screen: 'mappings', label: 'Role Category Mapping', icon: UserCog, visible: user.isHrAdmin || user.departmentHeadStatus === 'Head' }
   ] : [];
 
-  const accessLabel = user?.isHrAdmin ? 'HR Admin' : user?.isItAdmin ? 'IT System Admin' : user?.departmentHeadStatus === 'Head'
-    ? 'Department Head' : user?.isManager ? 'Line Manager' : 'Employee';
-
   function scorecardList(items: ScorecardSummary[], emptyMessage: string) {
     if (items.length === 0) return <div className="empty-state"><span aria-hidden="true">0</span><div><strong>No records yet</strong><p>{emptyMessage}</p></div></div>;
     return <div className="table-scroll"><table className="data-table">
       <thead><tr><th scope="col">Employee</th><th scope="col">Form</th><th scope="col">Phase</th><th scope="col">Status</th><th scope="col">Pending participant</th><th scope="col">Action</th></tr></thead>
       <tbody>{items.map((item) => <tr key={item.id}>
         <td><strong>{item.employeeName}</strong><small className="utility-text">{item.employeeNumber}</small></td><td>{formNames[item.formType] ?? readableLabel(item.formType)}</td>
-        <td><span className="phase-label">{phaseLabels[item.currentPhase as keyof typeof phaseLabels] ?? readableLabel(item.currentPhase)}</span></td><td><span className="status-chip">{readableLabel(item.status)}</span></td><td>{item.pendingParticipant ? readableLabel(item.pendingParticipant) : 'None'}{item.currentAssigneeEmployeeNumber ? <small className="utility-text">{item.currentAssigneeEmployeeNumber}</small> : null}</td>
-        <td><button className="table-action" type="button" onClick={() => openScorecard(item.id)}>Open {item.employeeName}<ArrowRight size={15} aria-hidden="true" /></button></td>
+        <td><span className="phase-label">{phaseLabels[item.currentPhase as keyof typeof phaseLabels] ?? readableLabel(item.currentPhase)}</span></td><td><span className="status-chip">{readableLabel(item.status)}</span></td><td>{item.currentAssigneeName ?? 'None'}</td>
+        <td><button className="table-action" type="button" aria-label={`Open ${item.employeeName}`} onClick={() => openScorecard(item.id)}>Open form<ArrowRight size={15} aria-hidden="true" /></button></td>
       </tr>)}</tbody>
     </table></div>;
   }
@@ -603,7 +612,7 @@ export function App() {
         <div className="navigation-cycle"><span className="utility-text">2027 cycle</span><PhaseSpine activePhase={activePhase} compact /></div>
         <div className="user-context">
           <div className="user-avatar" aria-hidden="true">{user.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</div>
-          <div><strong>{user.fullName}</strong><span>{accessLabel}</span></div>
+          <div><strong>{user.fullName}</strong><span>{user.position ?? 'Position unavailable'}</span></div>
           <button className="icon-button" type="button" disabled={actionBusy || logoutBusy} onClick={logout} aria-label="Logout"><LogOut size={17} aria-hidden="true" /></button>
         </div>
       </aside>
@@ -621,9 +630,9 @@ export function App() {
             <div><dt>Cycle position</dt><dd>{phaseLabels[activePhase as keyof typeof phaseLabels] ?? readableLabel(activePhase)}</dd></div>
           </dl>
           {screenBusy && <RequestLoader title={screenBusy} />}
-          <div className="content-panel"><div className="panel-heading"><div><span className="utility-text">2027 RECORD</span><h2>My submission</h2></div><span>{scorecards.filter((item) => item.employeeNumber === user.employeeNumber).length} record</span></div>
+          {!screenBusy && <div className="content-panel"><div className="panel-heading"><div><span className="utility-text">2027 RECORD</span><h2>My submission</h2></div><span>{scorecards.filter((item) => item.employeeNumber === user.employeeNumber).length} record</span></div>
             {scorecardList(scorecards.filter((item) => item.employeeNumber === user.employeeNumber), 'No 2027 PMS submission has been generated for this employee yet.')}
-          </div>
+          </div>}
         </section>}
 
         {screen === 'team' && <section className="screen-section" aria-labelledby="team-title">
