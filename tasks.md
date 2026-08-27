@@ -834,7 +834,7 @@ Goal: let configured admin identities complete their own assigned PMS workflow a
 
 Goal: identify people by their Oracle position and name while making submission actions and loading feedback concise.
 
-- [x] Show the signed-in employee's Oracle position in the navigation user context.
+- [x] Show the signed-in employee's Oracle `POSITION_NAME` in the navigation user context.
 - [x] Show `Getting submissions` while My PMS loads and avoid showing the empty state before the request finishes.
 - [x] Use `Open form` and `Remove` as the visible action labels.
 - [x] Show the current assignee's name as the pending participant without an employee number or participant category.

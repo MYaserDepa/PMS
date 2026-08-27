@@ -62,7 +62,8 @@ test('scenario 1: valid test login, session restoration, logout, and invalid fee
   await page.getByRole('button', { name: 'Test Login' }).click();
   await expect(page.getByRole('status')).toContainText('Getting submissions');
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
-  await expect(page.locator('.user-context')).toContainText('P-100');
+  await expect(page.locator('.user-context')).toContainText('Test Position');
+  await expect(page.locator('.user-context')).not.toContainText('P-100');
   await expect(page.locator('.user-context')).not.toContainText('HR Admin');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
