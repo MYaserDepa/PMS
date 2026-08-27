@@ -845,6 +845,20 @@ Goal: identify people by their Oracle position and name while making submission 
 - [x] Migration, backend API, frontend component, build, lint, and type checks pass.
 - [x] Browser checks validate the loading state, position label, participant names, form action, and history names.
 
+## Milestone 19: local database reset commands
+
+Goal: let developers rebuild disposable local databases from committed migrations and seeds without treating down migrations as a full-reset mechanism.
+
+- [x] Add a guarded command that drops and recreates the configured local development database, then migrates and seeds it.
+- [x] Add a combined command that also resets the derived `_test` database.
+- [x] Refuse development resets without an explicit opt-in, outside the development environment, on non-local hosts, and for protected database names.
+- [x] Document the reset commands and keep one-step migration rollback available.
+
+### Milestone 19 gate
+
+- [x] Unit tests cover the destructive-operation guards.
+- [x] Backend test, type-check, lint, and build commands pass.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

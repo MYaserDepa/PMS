@@ -23,6 +23,17 @@ The frontend runs at `http://localhost:5173`; the backend health endpoint is `ht
 
 The running application always resolves login and employee data through the configured Oracle endpoints. Any employee returned by `ORACLE_EMPLOYEE_URL` with `USER_EXISTS = Y` can use Test Login. The application has no runtime fixture mode and does not seed employee identities.
 
+## Reset local databases
+
+Set `PMS_ALLOW_DATABASE_RESET=true` in the ignored `.env` file when you want to enable destructive local resets. Then stop the development server and run one of these commands:
+
+```sh
+npm run db:reset
+npm run db:reset:all
+```
+
+`db:reset` drops and recreates the database named by `DATABASE_URL`, applies every migration, and seeds the POC configuration. `db:reset:all` also recreates the derived `_test` database. Both commands refuse to run outside `NODE_ENV=development`, against a non-local PostgreSQL host, or against a protected database name. `db:rollback` remains available when you need to revert only the latest migration.
+
 ## Checks
 
 ```sh
