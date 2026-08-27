@@ -107,9 +107,9 @@ function readableLabel(value: unknown): string {
 }
 
 function ActionLoader() {
-  return <div className="loading-panel request-loader workflow-request-loader" role="status" aria-live="polite">
+  return <div className="loading-panel request-loader" role="status" aria-live="polite">
     <div className="workflow-loader" aria-hidden="true">{[1, 2, 3, 4, 5].map((stage) => <span key={stage} />)}</div>
-    <div><p className="eyebrow">PMS 2027</p><p className="loading-title">Updating submission</p><p className="loading-copy">PMS is saving this workflow action and refreshing the scorecard.</p></div>
+    <p className="loading-message">Updating submission</p>
   </div>;
 }
 

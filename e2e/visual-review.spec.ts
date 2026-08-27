@@ -36,6 +36,9 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   const navigation = page.goto('/');
   await expect(page.getByRole('status')).toContainText('Checking for an existing session');
   await expect(page.locator('.login-form .request-loader')).toBeVisible();
+  await expect(page.locator('.request-loader')).toHaveCSS('position', 'fixed');
+  await expect(page.locator('.request-loader .eyebrow')).toHaveCount(0);
+  expect(await page.locator('.request-loader').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(80);
   await page.screenshot({ path: 'test-results/visual-review/desktop-loading.png', fullPage: true });
   await navigation;
 
@@ -85,6 +88,33 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await page.getByRole('button', { name: 'Expand navigation' }).click();
 
+  let cycleRequests = 0;
+  let departmentRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/cycle')) cycleRequests += 1;
+    if (request.url().endsWith('/api/hr/departments')) departmentRequests += 1;
+  });
+  await page.route('**/api/cycle', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.route('**/api/hr/departments', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Phase Control' }).click();
+  await expect(page.getByRole('status')).toContainText('Loading phase control');
+  await expect(page.getByRole('button', { name: 'Open next phase' })).toBeVisible();
+  await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
+  await expect(page.getByRole('status')).toContainText('Loading departments');
+  await expect(page.getByLabel('Department')).toHaveValue(/.+/);
+  await page.getByRole('button', { name: 'Phase Control' }).click();
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
+  await expect(page.getByRole('status')).toHaveCount(0);
+  expect(cycleRequests).toBe(1);
+  expect(departmentRequests).toBe(1);
+
   await page.getByRole('button', { name: 'Role Category Mapping' }).click();
   await page.route('**/api/role-categories/employees**', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 700));
@@ -120,6 +150,9 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
 
   await page.getByLabel('Employee Number').fill('12245');
   await page.getByRole('button', { name: 'Test Login' }).click();
+  await expect(page.getByRole('status')).toContainText('Checking employee access');
+  expect(await page.locator('.request-loader').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(80);
+  await page.screenshot({ path: 'test-results/visual-review/mobile-login-loading.png', fullPage: true });
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/mobile-home.png', fullPage: true });

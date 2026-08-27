@@ -788,6 +788,20 @@ Goal: keep request feedback beside the active workflow, use short-lived toasts f
 - [x] Frontend unit, build, lint, and type checks pass.
 - [x] Browser workflows validate localized loaders, auto-loaded departments, toasts, and the revised desktop and mobile presentation.
 
+## Milestone 15: in-memory page cache and compact loading toast
+
+Goal: avoid repeated page requests during one login and keep request feedback small enough that it never obscures the working area.
+
+- [x] Cache scorecard lists, department options, phase control, mapping departments, mapping worklists, strategy references, and scorecard details for the active login.
+- [x] Clear the cache on logout and update or refresh affected entries after generation, phase changes, mapping saves, and workflow actions.
+- [x] Replace the large loading panel with a fixed bottom-right toast containing only the compact workflow spinner and loading message.
+- [x] Verify that revisiting Phase Control and Create PMS Submissions performs no additional request and shows no loading toast.
+
+### Milestone 15 gate
+
+- [x] Frontend unit, build, lint, and type checks pass.
+- [x] Browser review confirms the compact loader and in-memory page reuse at desktop and mobile sizes.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

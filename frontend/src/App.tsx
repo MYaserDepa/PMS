@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, Building2, FilePlus2, House, ListChecks, LogOut, Milestone,
   PanelLeftClose, PanelLeftOpen, UserCog, UsersRound, type LucideIcon
@@ -97,10 +97,10 @@ function PhaseSpine({ activePhase, compact = false }: { activePhase: string; com
   </ol>;
 }
 
-function RequestLoader({ title, copy }: { title: string; copy: string }) {
+function RequestLoader({ title }: { title: string }) {
   return <div className="loading-panel request-loader" role="status" aria-live="polite">
       <div className="workflow-loader" aria-hidden="true">{phaseOrder.map((phase) => <span key={phase} />)}</div>
-      <div><p className="eyebrow">PMS 2027</p><p className="loading-title">{title}</p><p className="loading-copy">{copy}</p></div>
+      <p className="loading-message">{title}</p>
     </div>;
 }
 
@@ -115,6 +115,28 @@ function Toast({ toast }: { toast: ToastMessage }) {
 }
 
 type NavigationItem = { screen: Screen; label: string; icon: LucideIcon; visible: boolean };
+
+type MemoryCache = {
+  scorecardsLoaded: boolean;
+  departmentsLoaded: boolean;
+  mappingDepartmentsLoaded: boolean;
+  cycleLoaded: boolean;
+  strategyReferencesLoaded: boolean;
+  mappingEmployees: Map<string, MappingEmployee[]>;
+  scorecardDetails: Map<string, ScorecardDetail>;
+};
+
+function createMemoryCache(): MemoryCache {
+  return {
+    scorecardsLoaded: false,
+    departmentsLoaded: false,
+    mappingDepartmentsLoaded: false,
+    cycleLoaded: false,
+    strategyReferencesLoaded: false,
+    mappingEmployees: new Map(),
+    scorecardDetails: new Map()
+  };
+}
 
 export function App() {
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -141,6 +163,7 @@ export function App() {
   const [scorecardDetail, setScorecardDetail] = useState<ScorecardDetail | null>(null);
   const [strategyReferences, setStrategyReferences] = useState<Array<{ id: string; title: string }>>([]);
   const [actionBusy, setActionBusy] = useState(false);
+  const memoryCache = useRef<MemoryCache>(createMemoryCache());
   const [navigationCollapsed, setNavigationCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     try {
@@ -159,6 +182,22 @@ export function App() {
 
   function showToast(message: string, tone: ToastMessage['tone'] = 'info') {
     setToast({ message, tone });
+  }
+
+  function resetSessionCache() {
+    memoryCache.current = createMemoryCache();
+    setDepartments([]);
+    setDepartment('');
+    setPopulation([]);
+    setSelected([]);
+    setMappingDepartments([]);
+    setMappingDepartment('');
+    setMappingEmployees([]);
+    setMappingEdits({});
+    setScorecards([]);
+    setCycle(null);
+    setScorecardDetail(null);
+    setStrategyReferences([]);
   }
 
   function toggleNavigation() {
@@ -181,7 +220,10 @@ export function App() {
         setUser(restoredUser);
         if (restoredUser) {
           const response = await fetch(`${apiBaseUrl}/scorecards`, { credentials: 'include' });
-          if (response.ok) setScorecards(((await response.json()) as { scorecards: ScorecardSummary[] }).scorecards);
+          if (response.ok) {
+            setScorecards(((await response.json()) as { scorecards: ScorecardSummary[] }).scorecards);
+            memoryCache.current.scorecardsLoaded = true;
+          }
         }
       })
       .catch(() => setToast({ message: 'The PMS backend is unavailable.', tone: 'error' }))
@@ -207,9 +249,11 @@ export function App() {
       });
       const result = await response.json() as { user?: CurrentUser; error?: { message: string } };
       if (!response.ok || !result.user) throw new Error(result.error?.message ?? 'Login failed');
+      resetSessionCache();
       setUser(result.user);
       const scorecardResult = await api<{ scorecards: ScorecardSummary[] }>('/scorecards');
       setScorecards(scorecardResult.scorecards);
+      memoryCache.current.scorecardsLoaded = true;
     } catch (loginError) {
       showToast(loginError instanceof Error ? loginError.message : 'Login failed', 'error');
     } finally {
@@ -227,6 +271,7 @@ export function App() {
       setUser(null);
       setEmployeeNumber('');
       setScreen('home');
+      resetSessionCache();
     } catch (logoutError) {
       showToast(logoutError instanceof Error ? logoutError.message : 'Logout failed', 'error');
     } finally {
@@ -238,39 +283,41 @@ export function App() {
   async function openScreen(nextScreen: Screen) {
     setScreen(nextScreen);
     setToast(null);
-    const loadingMessage = nextScreen === 'generate' || nextScreen === 'mappings'
-      ? 'Loading departments'
-      : nextScreen === 'phase'
-        ? 'Loading phase control'
-        : ['home', 'team', 'department', 'all'].includes(nextScreen)
-          ? 'Loading submissions'
-          : '';
-    setScreenBusy(loadingMessage);
     try {
-      if (nextScreen === 'generate' && departments.length === 0) {
+      if (nextScreen === 'generate' && !memoryCache.current.departmentsLoaded) {
+        setScreenBusy('Loading departments');
         const result = await api<{ departments: string[] }>('/hr/departments');
         setDepartments(result.departments);
         setDepartment(result.departments[0] ?? '');
+        memoryCache.current.departmentsLoaded = true;
       }
       if (nextScreen === 'mappings') {
-        const result = await api<{ departments: string[] }>('/role-categories/departments');
-        const firstDepartment = result.departments[0] ?? '';
-        setMappingDepartments(result.departments);
-        setMappingDepartment(firstDepartment);
-        setMappingEmployees([]);
-        setMappingEdits({});
-        if (!user?.isHrAdmin && result.departments.length === 1) {
+        let availableDepartments = mappingDepartments;
+        if (!memoryCache.current.mappingDepartmentsLoaded) {
+          setScreenBusy('Loading departments');
+          const result = await api<{ departments: string[] }>('/role-categories/departments');
+          availableDepartments = result.departments;
+          setMappingDepartments(availableDepartments);
+          memoryCache.current.mappingDepartmentsLoaded = true;
+        }
+        const firstDepartment = mappingDepartment || availableDepartments[0] || '';
+        if (!mappingDepartment) setMappingDepartment(firstDepartment);
+        if (!user?.isHrAdmin && availableDepartments.length === 1 && firstDepartment) {
           setScreenBusy('');
           await loadMappingEmployees(firstDepartment);
         }
       }
-      if (['home', 'team', 'department', 'all'].includes(nextScreen)) {
+      if (['home', 'team', 'department', 'all'].includes(nextScreen) && !memoryCache.current.scorecardsLoaded) {
+        setScreenBusy('Loading submissions');
         const result = await api<{ scorecards: ScorecardSummary[] }>('/scorecards');
         setScorecards(result.scorecards);
+        memoryCache.current.scorecardsLoaded = true;
       }
-      if (nextScreen === 'phase') {
+      if (nextScreen === 'phase' && !memoryCache.current.cycleLoaded) {
+        setScreenBusy('Loading phase control');
         const result = await api<{ cycle: Cycle }>('/cycle');
         setCycle(result.cycle);
+        memoryCache.current.cycleLoaded = true;
       }
     } catch (loadError) {
       showToast(loadError instanceof Error ? loadError.message : 'Unable to load screen', 'error');
@@ -303,11 +350,16 @@ export function App() {
       const result = await api<GenerationSummary>('/hr/generate', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ employeeNumbers: selected })
       });
-      const refreshed = await api<{ rows: PopulationRow[] }>('/hr/populate', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ department })
-      });
+      const [refreshed, refreshedScorecards] = await Promise.all([
+        api<{ rows: PopulationRow[] }>('/hr/populate', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ department })
+        }),
+        api<{ scorecards: ScorecardSummary[] }>('/scorecards')
+      ]);
       setPopulation(refreshed.rows);
       setSelected(refreshed.rows.filter((row) => row.status === 'Ready').map((row) => row.employeeNumber));
+      setScorecards(refreshedScorecards.scorecards);
+      memoryCache.current.scorecardsLoaded = true;
       showToast(`${result.created} created · ${result.alreadyExisting} already exist · ${result.validationFailed} failed validation`, 'success');
     } catch (generateError) {
       showToast(generateError instanceof Error ? generateError.message : 'Generate failed', 'error');
@@ -316,7 +368,13 @@ export function App() {
     }
   }
 
-  async function loadMappingEmployees(targetDepartment = mappingDepartment) {
+  async function loadMappingEmployees(targetDepartment = mappingDepartment, forceRefresh = false) {
+    const cachedEmployees = memoryCache.current.mappingEmployees.get(targetDepartment);
+    if (cachedEmployees && !forceRefresh) {
+      setMappingEmployees(cachedEmployees);
+      setMappingEdits({});
+      return;
+    }
     setToast(null);
     setMappingBusy('Loading department employees');
     try {
@@ -325,6 +383,7 @@ export function App() {
       );
       setMappingEmployees(result.employees);
       setMappingEdits({});
+      memoryCache.current.mappingEmployees.set(targetDepartment, result.employees);
     } catch (mappingError) {
       showToast(mappingError instanceof Error ? mappingError.message : 'Unable to load department employees', 'error');
     } finally {
@@ -357,6 +416,7 @@ export function App() {
       );
       setMappingEmployees(refreshed.employees);
       setMappingEdits({});
+      memoryCache.current.mappingEmployees.set(mappingDepartment, refreshed.employees);
       showToast(`${changes.length} role category ${changes.length === 1 ? 'mapping' : 'mappings'} saved`, 'success');
     } catch (mappingError) {
       showToast(mappingError instanceof Error ? mappingError.message : 'Bulk mapping save failed', 'error');
@@ -374,8 +434,15 @@ export function App() {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ expectedCurrentPhase: cycle.current_phase })
       });
-      const refreshed = await api<{ cycle: Cycle }>('/cycle');
+      const [refreshed, refreshedScorecards] = await Promise.all([
+        api<{ cycle: Cycle }>('/cycle'),
+        api<{ scorecards: ScorecardSummary[] }>('/scorecards')
+      ]);
       setCycle(refreshed.cycle);
+      setScorecards(refreshedScorecards.scorecards);
+      memoryCache.current.cycleLoaded = true;
+      memoryCache.current.scorecardsLoaded = true;
+      memoryCache.current.scorecardDetails.clear();
       const openedPhase = phaseLabels[result.currentPhase as keyof typeof phaseLabels] ?? readableLabel(result.currentPhase);
       showToast(`${openedPhase} opened for ${result.openedScorecards} scorecards`, 'success');
     } catch (phaseError) {
@@ -387,14 +454,26 @@ export function App() {
 
   async function openScorecard(id: string) {
     setToast(null);
+    const cachedDetail = memoryCache.current.scorecardDetails.get(id);
+    if (cachedDetail && memoryCache.current.strategyReferencesLoaded) {
+      setScorecardDetail(cachedDetail);
+      setScreen('scorecard');
+      return;
+    }
     setScreenBusy('Opening scorecard');
     try {
       const [detail, references] = await Promise.all([
-        api<{ scorecard: ScorecardDetail }>(`/scorecards/${id}`),
-        api<{ strategyReferences: Array<{ id: string; title: string }> }>('/strategy-references')
+        cachedDetail
+          ? Promise.resolve({ scorecard: cachedDetail })
+          : api<{ scorecard: ScorecardDetail }>(`/scorecards/${id}`),
+        memoryCache.current.strategyReferencesLoaded
+          ? Promise.resolve({ strategyReferences })
+          : api<{ strategyReferences: Array<{ id: string; title: string }> }>('/strategy-references')
       ]);
       setScorecardDetail(detail.scorecard);
       setStrategyReferences(references.strategyReferences);
+      memoryCache.current.scorecardDetails.set(id, detail.scorecard);
+      memoryCache.current.strategyReferencesLoaded = true;
       setScreen('scorecard');
     } catch (openError) {
       showToast(openError instanceof Error ? openError.message : 'Unable to open scorecard', 'error');
@@ -412,6 +491,14 @@ export function App() {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload)
       });
       setScorecardDetail(result.scorecard);
+      memoryCache.current.scorecardDetails.set(result.scorecard.id, result.scorecard);
+      setScorecards((current) => current.map((item) => item.id === result.scorecard.id ? {
+        ...item,
+        currentPhase: result.scorecard.current_phase,
+        status: result.scorecard.status,
+        currentAssigneeEmployeeNumber: result.scorecard.current_workflow_assignee_employee_number,
+        pendingParticipant: result.scorecard.pending_participant
+      } : item));
       showToast(`${readableLabel(action)} completed`, 'success');
     } catch (actionError) {
       showToast(actionError instanceof Error ? actionError.message : 'Workflow action failed', 'error');
@@ -481,8 +568,8 @@ export function App() {
                 />
                 <button type="submit" disabled={sessionBusy || loginBusy}>{loginBusy ? 'Signing in...' : 'Test Login'}<ArrowRight size={18} aria-hidden="true" /></button>
               </div>
-              {sessionBusy && <RequestLoader title="Checking for an existing session" copy="PMS is checking whether this browser already has an active login." />}
-              {loginBusy && <RequestLoader title="Checking employee access" copy="PMS is loading your identity and current performance cycle." />}
+              {sessionBusy && <RequestLoader title="Checking for an existing session" />}
+              {loginBusy && <RequestLoader title="Checking employee access" />}
             </form>
           </div>
         </section>
@@ -533,29 +620,33 @@ export function App() {
             <div><dt>Department</dt><dd>{user.department ?? 'Not available'}</dd></div>
             <div><dt>Cycle position</dt><dd>{phaseLabels[activePhase as keyof typeof phaseLabels] ?? readableLabel(activePhase)}</dd></div>
           </dl>
-          {screenBusy ? <RequestLoader title={screenBusy} copy="PMS is retrieving the latest submissions for this section." /> : <div className="content-panel"><div className="panel-heading"><div><span className="utility-text">2027 RECORD</span><h2>My submission</h2></div><span>{scorecards.filter((item) => item.employeeNumber === user.employeeNumber).length} record</span></div>
+          {screenBusy && <RequestLoader title={screenBusy} />}
+          <div className="content-panel"><div className="panel-heading"><div><span className="utility-text">2027 RECORD</span><h2>My submission</h2></div><span>{scorecards.filter((item) => item.employeeNumber === user.employeeNumber).length} record</span></div>
             {scorecardList(scorecards.filter((item) => item.employeeNumber === user.employeeNumber), 'No 2027 PMS submission has been generated for this employee yet.')}
-          </div>}
+          </div>
         </section>}
 
         {screen === 'team' && <section className="screen-section" aria-labelledby="team-title">
           <div className="screen-heading"><div><p className="eyebrow">Line Manager</p><h1 id="team-title">My Team</h1><p>Review direct reports and act when a submission is pending with you.</p></div></div>
-          {screenBusy ? <RequestLoader title={screenBusy} copy="PMS is retrieving the latest submissions for this section." /> : scorecardList(scorecards.filter((item) => item.employeeNumber !== user.employeeNumber), 'No direct-report submissions are available.')}
+          {screenBusy && <RequestLoader title={screenBusy} />}
+          {scorecardList(scorecards.filter((item) => item.employeeNumber !== user.employeeNumber), 'No direct-report submissions are available.')}
         </section>}
 
         {screen === 'department' && <section className="screen-section" aria-labelledby="department-title">
           <div className="screen-heading"><div><p className="eyebrow">Department Head</p><h1 id="department-title">Department PMS</h1><p>{user.department ?? 'Your department'} submissions for the active 2027 cycle.</p></div></div>
-          {screenBusy ? <RequestLoader title={screenBusy} copy="PMS is retrieving the latest submissions for this section." /> : scorecardList(scorecards.filter((item) => item.department === user.department), 'No department submissions are available.')}
+          {screenBusy && <RequestLoader title={screenBusy} />}
+          {scorecardList(scorecards.filter((item) => item.department === user.department), 'No department submissions are available.')}
         </section>}
 
         {screen === 'all' && <section className="screen-section" aria-labelledby="all-title">
           <div className="screen-heading"><div><p className="eyebrow">HR</p><h1 id="all-title">All 2027 Submissions</h1><p>Every generated scorecard in the current performance cycle.</p></div><span className="record-count utility-text">{scorecards.length.toString().padStart(2, '0')} RECORDS</span></div>
-          {screenBusy ? <RequestLoader title={screenBusy} copy="PMS is retrieving the latest submissions for this section." /> : scorecardList(scorecards, 'No submissions have been generated.')}
+          {screenBusy && <RequestLoader title={screenBusy} />}
+          {scorecardList(scorecards, 'No submissions have been generated.')}
         </section>}
 
         {screen === 'phase' && <section className="screen-section" aria-labelledby="phase-title">
           <div className="screen-heading"><div><p className="eyebrow">HR control</p><h1 id="phase-title">Phase Control</h1><p>Advance the cycle only after every eligible scorecard completes the current phase.</p></div></div>
-          {screenBusy && <RequestLoader title={screenBusy} copy="PMS is checking the cycle and its eligible scorecards." />}
+          {screenBusy && <RequestLoader title={screenBusy} />}
           {cycle && <div className="phase-card"><div className="phase-card-top"><dl><div><dt>Cycle</dt><dd>{cycle.name}</dd></div><div><dt>Current phase</dt><dd>{phaseLabels[cycle.current_phase as keyof typeof phaseLabels] ?? readableLabel(cycle.current_phase)}</dd></div><div><dt>Status</dt><dd><span className="status-chip">{readableLabel(cycle.status)}</span></dd></div></dl>
             {cycle.current_phase !== 'Closed' && <button type="button" onClick={advancePhase} disabled={Boolean(screenBusy)}>Open next phase<ArrowRight size={17} aria-hidden="true" /></button>}</div>
             <PhaseSpine activePhase={cycle.current_phase} />
@@ -571,9 +662,9 @@ export function App() {
             <button type="button" onClick={populate} disabled={!department || Boolean(screenBusy) || populationBusy || generationBusy}>Populate<FilePlus2 size={16} aria-hidden="true" /></button>
             {population.length > 0 && <button className="secondary-action" type="button" onClick={generate} disabled={selected.length === 0 || populationBusy || generationBusy}>Generate selected<ArrowRight size={16} aria-hidden="true" /></button>}
           </div>
-          {screenBusy && <RequestLoader title={screenBusy} copy="PMS is retrieving the departments available for PMS submissions." />}
-          {populationBusy && <RequestLoader title="Populating department employees" copy="PMS is resolving the assignment rules for the selected department." />}
-          {generationBusy && <RequestLoader title="Creating PMS submissions" copy="PMS is creating the selected scorecards and refreshing the preview." />}
+          {screenBusy && <RequestLoader title={screenBusy} />}
+          {populationBusy && <RequestLoader title="Populating department employees" />}
+          {generationBusy && <RequestLoader title="Creating PMS submissions" />}
           {population.length > 0 && <div className="table-scroll"><table className="data-table population-table">
             <thead><tr><th scope="col">Select</th><th scope="col">Employee</th><th scope="col">Grade</th><th scope="col">Employer / Classification</th><th scope="col">Department Head</th><th scope="col">Role Category</th><th scope="col">Manager</th><th scope="col">Form</th><th scope="col">Status</th></tr></thead>
             <tbody>{population.map((row) => <tr key={row.employeeNumber}>
@@ -598,12 +689,12 @@ export function App() {
             }}>
               {mappingDepartments.map((item) => <option key={item}>{item}</option>)}
             </select></label>
-            <button type="button" onClick={() => loadMappingEmployees()} disabled={!mappingDepartment || Boolean(mappingBusy) || Boolean(screenBusy)}>
+            <button type="button" onClick={() => loadMappingEmployees(mappingDepartment, true)} disabled={!mappingDepartment || Boolean(mappingBusy) || Boolean(screenBusy)}>
               Load employees<UsersRound size={16} aria-hidden="true" />
             </button>
           </div>
-          {screenBusy && <RequestLoader title={screenBusy} copy="PMS is retrieving the departments available to you." />}
-          {mappingBusy && <RequestLoader title={mappingBusy} copy={mappingBusy.startsWith('Saving') ? 'PMS is saving the selected employee mappings and refreshing the worklist.' : 'PMS is retrieving employees and their current mappings.'} />}
+          {screenBusy && <RequestLoader title={screenBusy} />}
+          {mappingBusy && <RequestLoader title={mappingBusy} />}
           {mappingEmployees.length > 0 && <div className="mapping-worklist content-panel">
             <div className="panel-heading mapping-worklist-heading"><div><span className="utility-text">{mappingDepartment.toUpperCase()}</span><h2>Department employees</h2></div><span>{Object.keys(mappingEdits).length} pending</span></div>
             <div className="table-scroll"><table className="data-table mapping-table">

@@ -181,27 +181,29 @@
   .input-with-action { @apply grid gap-3 sm:grid-cols-[1fr_auto]; }
   .input-with-action button { @apply mt-1.5 whitespace-nowrap sm:min-w-36; }
 
-  .loading-panel { @apply flex items-center gap-6 rounded-2xl border border-line bg-white px-7 py-6 shadow-panel; }
-  .request-loader { @apply mt-4 w-full max-w-3xl; }
-  .workflow-request-loader { @apply mx-4 mb-4 mt-0 w-auto max-w-none; }
-  .loading-title { @apply mb-1 text-lg font-extrabold text-carbon; }
-  .loading-copy { @apply mb-0 max-w-xs text-sm text-slate; }
+  .loading-panel { @apply flex items-center gap-3 rounded-lg border border-line bg-white px-4 py-3 shadow-panel; }
+  .request-loader {
+    @apply fixed bottom-5 right-5 z-50 m-0 w-auto max-w-sm;
+    animation: toast-in 180ms ease-out;
+  }
+  .loading-message { @apply mb-0 text-sm font-bold text-carbon; }
   .workflow-loader {
-    @apply relative size-16 shrink-0;
+    --loader-radius: 19px;
+    @apply relative size-10 shrink-0;
     animation: loader-turn 5s linear infinite;
   }
 
   .workflow-loader span {
-    @apply absolute left-1/2 top-1/2 h-[19px] w-[7px] rounded-full bg-sand;
-    transform-origin: 50% 31px;
+    @apply absolute left-1/2 top-1/2 h-3 w-1 rounded-full bg-sand;
+    transform-origin: 50% var(--loader-radius);
     animation: stage-pulse 1.25s ease-in-out infinite;
   }
 
-  .workflow-loader span:nth-child(1) { transform: translate(-50%, -31px) rotate(0deg); animation-delay: 0s; background: var(--color-depa); }
-  .workflow-loader span:nth-child(2) { transform: translate(-50%, -31px) rotate(72deg); animation-delay: 0.1s; background: var(--color-coral); }
-  .workflow-loader span:nth-child(3) { transform: translate(-50%, -31px) rotate(144deg); animation-delay: 0.2s; }
-  .workflow-loader span:nth-child(4) { transform: translate(-50%, -31px) rotate(216deg); animation-delay: 0.3s; }
-  .workflow-loader span:nth-child(5) { transform: translate(-50%, -31px) rotate(288deg); animation-delay: 0.4s; }
+  .workflow-loader span:nth-child(1) { transform: translate(-50%, calc(-1 * var(--loader-radius))) rotate(0deg); animation-delay: 0s; background: var(--color-depa); }
+  .workflow-loader span:nth-child(2) { transform: translate(-50%, calc(-1 * var(--loader-radius))) rotate(72deg); animation-delay: 0.1s; background: var(--color-coral); }
+  .workflow-loader span:nth-child(3) { transform: translate(-50%, calc(-1 * var(--loader-radius))) rotate(144deg); animation-delay: 0.2s; }
+  .workflow-loader span:nth-child(4) { transform: translate(-50%, calc(-1 * var(--loader-radius))) rotate(216deg); animation-delay: 0.3s; }
+  .workflow-loader span:nth-child(5) { transform: translate(-50%, calc(-1 * var(--loader-radius))) rotate(288deg); animation-delay: 0.4s; }
 
   .app-shell { @apply min-h-screen; }
   .navigation-shell { @apply fixed inset-y-0 left-0 z-30 flex w-[17rem] flex-col border-r border-black/20 bg-carbon text-white; }
@@ -472,7 +474,8 @@
   .workspace-header > div:first-child span { @apply hidden; }
   .workspace-phase { @apply pl-3; }
   .content { @apply p-4; }
-  .toast { @apply bottom-4 left-4 right-4 max-w-none; }
+  .toast,
+  .request-loader { @apply bottom-4 left-4 right-4 max-w-none; }
   .screen-heading,
   .scorecard-heading { @apply flex-col gap-3; }
   .record-count { @apply self-start; }
@@ -482,8 +485,6 @@
   .phase-card > .phase-spine li > span:last-child { @apply hidden; }
   .phase-card > .phase-spine li { @apply justify-items-center; }
   .phase-card > .phase-spine li::after { @apply left-[calc(50%+0.75rem)] w-[calc(100%-0.1rem)]; }
-  .loading-panel { @apply items-start gap-4 px-5; }
-  .workflow-loader { @apply size-14; }
 }
 
 @media (prefers-reduced-motion: reduce) {

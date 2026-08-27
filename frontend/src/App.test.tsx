@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.js';
 
@@ -37,6 +37,39 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeInTheDocument();
     expect(document.querySelector('.app-shell')).toHaveClass('navigation-collapsed');
     expect(window.localStorage.getItem('pms-navigation-collapsed')).toBe('true');
+  });
+
+  it('reuses page data from memory when revisiting screens', async () => {
+    const user = {
+      employeeNumber: '12245', fullName: 'Hana Admin', department: 'Human Resources',
+      isHrAdmin: true, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/session')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ user }) });
+      if (url.endsWith('/scorecards')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) });
+      if (url.endsWith('/cycle')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: 'GoalSetting' } }) });
+      if (url.endsWith('/hr/departments')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ departments: ['Delivery'] }) });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Welcome, Hana Admin' })).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/scorecards'))).toHaveLength(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Phase Control' }));
+    expect(await screen.findByRole('button', { name: 'Open next phase' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create PMS Submissions' }));
+    expect(await screen.findByLabelText('Department')).toHaveValue('Delivery');
+    fireEvent.click(screen.getByRole('button', { name: 'Phase Control' }));
+    expect(await screen.findByRole('button', { name: 'Open next phase' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create PMS Submissions' }));
+    expect(await screen.findByLabelText('Department')).toHaveValue('Delivery');
+
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/cycle'))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/hr/departments'))).toHaveLength(1);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('renders the HR Populate preview with form and validation results', async () => {
