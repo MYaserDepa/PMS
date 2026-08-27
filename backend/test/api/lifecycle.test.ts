@@ -120,11 +120,20 @@ describe('complete annual lifecycle rules', () => {
   it('records owned Development notes, closes atomically, and rejects every later mutation', async () => {
     for (const [id, employeeAgent] of [[dugId, dugEmployee], [adminId, adminEmployee]] as const) {
       await action(employeeAgent, id, 'SavedDraft', { employeeDevelopmentNotes: 'Complete leadership development programme' });
+      const employeeDraft = await employeeAgent.get(`/api/scorecards/${id}`).expect(200);
+      expect(employeeDraft.body.scorecard.employee_development_notes).toBe('Complete leadership development programme');
       await action(employeeAgent, id, 'Initiated', { employeeDevelopmentNotes: 'Complete leadership development programme' });
+      const managerReview = await manager.get(`/api/scorecards/${id}`).expect(200);
+      expect(managerReview.body.scorecard.employee_development_notes).toBe('Complete leadership development programme');
       await action(manager, id, 'SavedDraft', { managerDevelopmentNotes: 'Quarterly coaching and feedback' });
       await action(manager, id, 'Approved', { managerDevelopmentNotes: 'Quarterly coaching and feedback' });
       const closed = await employeeAgent.get(`/api/scorecards/${id}`).expect(200);
-      expect(closed.body.scorecard).toMatchObject({ status: 'Closed', current_phase: 'Closed' });
+      expect(closed.body.scorecard).toMatchObject({
+        status: 'Closed',
+        current_phase: 'Closed',
+        employee_development_notes: 'Complete leadership development programme',
+        manager_development_notes: 'Quarterly coaching and feedback'
+      });
       expect(closed.body.scorecard.history.slice(-2).map((entry: { action: string }) => entry.action)).toEqual(['Approved', 'Closed']);
       await action(employeeAgent, id, 'SavedDraft', { employeeDevelopmentNotes: 'Mutation after close' }, 409);
     }

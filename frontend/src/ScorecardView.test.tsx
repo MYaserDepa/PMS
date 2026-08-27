@@ -22,7 +22,7 @@ function detail(formType: string, overrides: Partial<ScorecardDetail> = {}): Sco
     })) : [],
     phaseStates: [{ phase: 'GoalSetting', requires_resubmission: false }],
     history: [{ id: '1', action: 'Created', phase: 'GoalSetting', action_by_employee_number: '12245', action_by_name: 'Hana Admin' }],
-    overall_rating: null,
+    overall_rating: null, employee_development_notes: null, manager_development_notes: null,
     ...overrides
   };
 }
@@ -119,10 +119,14 @@ describe('phase-specific ownership', () => {
     employeeView.unmount();
 
     render(<ScorecardView scorecard={detail('DUGLeadership', {
-      current_phase: 'Development', pending_participant: null, current_workflow_assignee_employee_number: null, status: 'Closed'
+      current_phase: 'Closed', pending_participant: null, current_workflow_assignee_employee_number: null, status: 'Closed',
+      employee_development_notes: 'Complete the leadership programme',
+      manager_development_notes: 'Quarterly leadership coaching'
     })} userEmployeeNumber="12245" strategyReferences={references} busy={false} onAction={vi.fn()} />);
     expect(screen.getByLabelText('Employee Development Notes')).toBeDisabled();
+    expect(screen.getByLabelText('Employee Development Notes')).toHaveValue('Complete the leadership programme');
     expect(screen.getByLabelText('Manager Development Notes')).toBeDisabled();
+    expect(screen.getByLabelText('Manager Development Notes')).toHaveValue('Quarterly leadership coaching');
     expect(screen.queryByRole('button', { name: 'Save as Draft' })).not.toBeInTheDocument();
   });
 });

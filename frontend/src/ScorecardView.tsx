@@ -16,8 +16,8 @@ export interface ScorecardDetail {
   phaseStates: Array<Record<string, unknown>>;
   history: Array<Record<string, unknown>>;
   overall_rating: string | null;
-  employee_development_notes?: string | null;
-  manager_development_notes?: string | null;
+  employee_development_notes: string | null;
+  manager_development_notes: string | null;
 }
 
 export interface WorkLine {
@@ -240,7 +240,7 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
       {editablePlan && <button className="add-row-button" type="button" onClick={() => setLines([...lines, emptyLine()])}><Plus size={17} aria-hidden="true" />Add row</button>}
     </div>}
 
-    {scorecard.current_phase === 'Development' && <div className="development-fields">
+    {(scorecard.current_phase === 'Development' || scorecard.current_phase === 'Closed') && <div className="development-fields">
       <label>Employee Development Notes<textarea disabled={!employeePending} required={employeePending} value={employeeDevelopmentNotes} onChange={(event) => setEmployeeDevelopmentNotes(event.target.value)} /></label>
       <label>Manager Development Notes<textarea disabled={!managerPending} required={managerPending} value={managerDevelopmentNotes} onChange={(event) => setManagerDevelopmentNotes(event.target.value)} /></label>
     </div>}

@@ -16,11 +16,14 @@ interface ScorecardRow {
   current_workflow_assignee_employee_number: string | null;
   current_assignee_name: string | null;
   status: string;
+  employee_development_notes: string | null;
+  manager_development_notes: string | null;
 }
 
 const scorecardSelect = `
   SELECT s.id, s.employee_number, e.full_name, e.department, e.supervisor_number, s.form_type,
     s.current_phase, s.status, s.current_workflow_assignee_employee_number, s.overall_rating,
+    s.employee_development_notes, s.manager_development_notes,
     p.pending_participant,
     CASE
       WHEN s.current_workflow_assignee_employee_number = e.employee_number THEN e.full_name

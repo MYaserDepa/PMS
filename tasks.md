@@ -597,6 +597,7 @@ Goal: record simple development information, complete the final workflow, and ma
 ### M9-T1: Implement Development phase fields and ownership
 
 - [x] Add a simple `DevelopmentNotes` experience for agreed development priorities, actions, manager feedback, and employee comments without adding a separate development-planning product.
+- [x] Return saved employee and manager Development Notes in scorecard details so they remain visible after draft, submission, approval, reload, and close.
 - Dependencies: M8-T4, M4-T5.
 - Acceptance criteria:
   - HR opens Development only after Year-End approval.
