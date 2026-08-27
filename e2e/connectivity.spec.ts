@@ -70,27 +70,25 @@ test('scenario 6: HR and Department Head maintain RoleCategory within scope', as
   await login(page, '12245');
   await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
   await expect(page.getByRole('heading', { name: 'RoleCategory Mapping' })).toBeVisible();
-  await page.getByLabel('Employee Number').fill('17004');
-  await page.getByLabel('RoleCategory', { exact: true }).selectOption('AdministrativeSupport');
-  await page.getByRole('button', { name: 'Save mapping' }).click();
-  await expect(page.getByRole('status')).toContainText('RoleCategory saved for 17004');
-  await page.getByLabel('Employee Number').fill('17003');
-  await page.getByLabel('RoleCategory', { exact: true }).selectOption('AdministrativeSupport');
-  await page.getByRole('button', { name: 'Save mapping' }).click();
-  await expect(page.getByRole('status')).toContainText('RoleCategory saved for 17003');
+  await page.getByLabel('Department').selectOption('Delivery');
+  await page.getByRole('button', { name: 'Load employees' }).click();
+  await page.getByLabel('RoleCategory for Mina Unmapped').selectOption('AdministrativeSupport');
+  await page.getByLabel('RoleCategory for Peter Professional').selectOption('AdministrativeSupport');
+  await page.getByLabel('RoleCategory for Sara Support').selectOption('AdministrativeSupport');
+  await page.getByRole('button', { name: 'Save mappings' }).click();
+  await expect(page.getByRole('status')).toContainText('3 RoleCategory mappings saved');
   await page.getByRole('button', { name: 'Logout' }).click();
 
   await page.getByLabel('Employee Number').fill('17001');
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
-  await page.getByLabel('Employee Number').fill('12245');
-  await page.getByLabel('RoleCategory', { exact: true }).selectOption('AdministrativeSupport');
-  await page.getByRole('button', { name: 'Save mapping' }).click();
-  await expect(page.getByRole('alert')).toContainText('outside the Department Head scope');
-  await page.getByLabel('Employee Number').fill('17002');
-  await page.getByLabel('RoleCategory', { exact: true }).selectOption('ProjectDeliveryProfessional');
-  await page.getByRole('button', { name: 'Save mapping' }).click();
-  await expect(page.getByRole('status')).toContainText('RoleCategory saved for 17002');
+  await expect(page.getByLabel('Department')).toHaveValue('Delivery');
+  await expect(page.getByLabel('Department').locator('option')).toHaveCount(1);
+  await expect(page.getByRole('table')).toContainText('Peter Professional');
+  await expect(page.getByRole('table')).not.toContainText('Hana Admin');
+  await page.getByLabel('RoleCategory for Peter Professional').selectOption('ProjectDeliveryProfessional');
+  await page.getByRole('button', { name: 'Save mappings' }).click();
+  await expect(page.getByRole('status')).toContainText('1 RoleCategory mapping saved');
 });
 
 test('scenarios 2 through 6: HR previews all assignment branches and generates selected scorecards', async ({ page }) => {
@@ -108,6 +106,7 @@ test('scenarios 2 through 6: HR previews all assignment branches and generates s
   await expect(table).toContainText('Missing Manager');
   await expect(table).toContainText('Missing Grade');
   await expect(table).toContainText('Unable to Resolve DUG/KBU');
+  await expect(table.getByRole('row').filter({ hasText: 'Dalia Leader' })).toContainText('Noura Head');
   await page.getByRole('button', { name: 'Generate selected' }).click();
   await expect(page.getByRole('status')).toContainText('6 Created');
   await expect(table).toContainText('PMS Already Exists');

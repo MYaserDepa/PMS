@@ -48,6 +48,8 @@ describe('assignment integration data', () => {
     const service = new AssignmentDataService(clientFor());
     await expect(service.departmentHeadStatus('17001')).resolves.toBe('Head');
     await expect(service.departmentHeadStatus('17002')).resolves.toBe('NotHead');
+    await expect(service.departmentHeadDepartments('17001')).resolves.toEqual(['Delivery']);
+    await expect(service.departmentHeadNames('Delivery')).resolves.toEqual(['Noura Head']);
   });
 
   it('classifies DUG and non-DUG employers only through an unambiguous mapping', async () => {
@@ -57,6 +59,14 @@ describe('assignment integration data', () => {
     await expect(service.employerClassification('depa interiors')).resolves.toBe('KBU');
     await expect(service.employerClassification(null)).rejects.toMatchObject({ code: 'MISSING_EMPLOYER' });
     await expect(service.employerClassification('Unknown')).rejects.toMatchObject({ code: 'UNRESOLVED_EMPLOYER' });
+  });
+
+  it('accepts duplicate employer matches when they all resolve to KBU', async () => {
+    const duplicateKbu = employerMappingPayload([...employerMappings, {
+      org_Name: 'Depa Interiors LLC - Branch', dataGrid1: [{ fieldName: 'EMPLOYER', value: 'Depa Interiors' }]
+    }]);
+    await expect(new AssignmentDataService(clientFor(undefined, duplicateKbu))
+      .employerClassification('Depa Interiors')).resolves.toBe('KBU');
   });
 
   it('rejects malformed and duplicate employer mappings', async () => {

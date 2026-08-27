@@ -333,8 +333,16 @@
   }
   .error-message { @apply mb-0 rounded-lg border border-[#e4a8a2] bg-[#fff0ed] px-4 py-3 text-sm font-bold text-[#8d2225]; }
   .content > .error-message { @apply fixed bottom-5 right-5 z-50 max-w-md shadow-panel; }
-  .mapping-form { @apply m-0 grid items-end gap-4 p-4 md:grid-cols-[1fr_1.4fr_auto]; }
-  .mapping-field { @apply grid gap-1.5; }
+  .mapping-toolbar label { @apply max-w-xl; }
+  .mapping-worklist { @apply min-w-0 max-w-full overflow-hidden; }
+  .mapping-worklist-heading { @apply border-b border-line; }
+  .mapping-table { @apply min-w-[44rem]; }
+  .mapping-table select { @apply mt-0 min-w-64; }
+  .mapping-category { @apply block; }
+  .mapping-row-inactive { @apply bg-[#faf9f7]; }
+  .mapping-row-inactive td { @apply text-slate; }
+  .mapping-actions { @apply flex flex-wrap items-center justify-between gap-3 border-t border-line bg-[#faf8f5] px-4 py-3; }
+  .mapping-actions p { @apply mb-0 text-xs text-slate; }
   .phase-card { @apply overflow-hidden; }
   .phase-card-top { @apply flex flex-wrap items-end justify-between gap-5 border-b border-line p-5; }
   .phase-card dl { @apply m-0 grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3; }

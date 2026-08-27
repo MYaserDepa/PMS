@@ -734,6 +734,34 @@ Goal: incorporate the supplied Depa brand asset and give desktop users direct co
 - [x] Browser workflows pass with expanded and collapsed navigation.
 - [x] Desktop and mobile screenshots confirm correct logo sizing, home-page height, and navigation behavior.
 
+## Milestone 13: functional corrections
+
+Goal: remove repetitive RoleCategory entry and correct the live assignment preview without changing the PRD decision tree.
+
+### M13-T1: Department-based bulk RoleCategory mapping
+
+- [x] Replace employee-number entry with a department selector and employee worklist.
+- [x] Give HR access to all departments and Department Heads access only to every department assigned to them by the Department Head API.
+- [x] Auto-load the worklist when a Department Head has exactly one department.
+- [x] Save one or more changed RoleCategory values in one transactional request and reject out-of-scope or inapplicable employees in the backend.
+
+### M13-T2: Correct KBU employer resolution
+
+- [x] Treat multiple employer records as resolved when every match produces the same DUG or KBU classification.
+- [x] Keep conflicting DUG and KBU matches blocked as `Unable to Resolve DUG/KBU`.
+- [x] Confirm employee `4090` resolves to the KBU Leadership Scorecard from the configured live Oracle and Nexus data.
+
+### M13-T3: Show the employee's Department Head
+
+- [x] Resolve the Department Head name by the employee's department for every Populate row.
+- [x] Display the resolved name in the `Department Head` column instead of internal assignment states such as `NotHead` or `NotApplicable`.
+
+### Milestone 13 gate
+
+- [x] Backend unit, API integration, frontend component, build, lint, and type checks pass.
+- [x] Browser tests validate HR bulk mapping, single-department head auto-load, assignment preview names, and form generation.
+- [x] Browser screenshots confirm the revised mapping worklist is usable at desktop and mobile sizes.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

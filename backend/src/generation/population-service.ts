@@ -3,7 +3,7 @@ import { ApplicationError } from '../errors.js';
 import { assignForm, type AssignmentResult } from '../assignment/form-assignment.js';
 import { AssignmentDataService } from '../oracle/assignment-data.js';
 import type { OracleClient } from '../oracle/client.js';
-import type { OracleEmployee } from '../oracle/types.js';
+import type { DepartmentHead, EmployerMapping, OracleEmployee } from '../oracle/types.js';
 import { getPool, inTransaction } from '../database/pool.js';
 import { repositories, RoleCategoryRepository, ScorecardRepository, type RoleCategory } from '../database/repositories.js';
 
@@ -15,6 +15,7 @@ export interface PopulationRow {
   employer: string | null;
   employerClassification: 'DUG' | 'KBU' | 'Unresolved' | 'NotApplicable';
   departmentHeadStatus: 'Head' | 'NotHead' | 'Unavailable' | 'NotApplicable';
+  departmentHeadName: string | null;
   roleCategory: RoleCategory | null;
   managerNumber: string | null;
   managerName: string | null;
@@ -57,24 +58,47 @@ export class PopulationService {
     return (await new RoleCategoryRepository(getPool()).find(employeeNumber))?.role_category ?? null;
   }
 
-  private async resolve(employee: OracleEmployee): Promise<PopulationRow> {
+  private async resolve(employee: OracleEmployee, supplied?: {
+    departmentHeads: DepartmentHead[] | null;
+    employerMappings: EmployerMapping[] | null;
+  }): Promise<PopulationRow> {
     const alreadyExists = await new ScorecardRepository(getPool()).exists(employee.EMPLOYEE_NUMBER);
     let departmentHeadStatus: PopulationRow['departmentHeadStatus'] = 'NotApplicable';
     let employerClassification: PopulationRow['employerClassification'] = 'NotApplicable';
     let roleCategory: RoleCategory | null = null;
+    let departmentHeads = supplied?.departmentHeads;
+    let employerMappings = supplied?.employerMappings;
+
+    if (departmentHeads === undefined) {
+      try {
+        departmentHeads = await this.oracle.listDepartmentHeads();
+      } catch {
+        departmentHeads = null;
+      }
+    }
+    const departmentHeadNames = departmentHeads
+      ? await this.assignmentData.departmentHeadNames(employee.DEPARTMENT, departmentHeads)
+      : [];
 
     if (employee.GRADE !== null && employee.GRADE >= 18) {
+      if (employerMappings === undefined) {
+        try {
+          employerMappings = await this.oracle.listEmployerMappings();
+        } catch {
+          employerMappings = null;
+        }
+      }
       try {
-        employerClassification = await this.assignmentData.employerClassification(employee.EMPLOYER);
+        employerClassification = employerMappings
+          ? await this.assignmentData.employerClassification(employee.EMPLOYER, employerMappings)
+          : 'Unresolved';
       } catch {
         employerClassification = 'Unresolved';
       }
     } else if (employee.GRADE !== null) {
-      try {
-        departmentHeadStatus = await this.assignmentData.departmentHeadStatus(employee.EMPLOYEE_NUMBER);
-      } catch {
-        departmentHeadStatus = 'Unavailable';
-      }
+      departmentHeadStatus = departmentHeads
+        ? await this.assignmentData.departmentHeadStatus(employee.EMPLOYEE_NUMBER, departmentHeads)
+        : 'Unavailable';
       if (departmentHeadStatus === 'NotHead') roleCategory = await this.roleCategory(employee.EMPLOYEE_NUMBER);
     }
 
@@ -96,6 +120,7 @@ export class PopulationService {
       employer: employee.EMPLOYER,
       employerClassification,
       departmentHeadStatus,
+      departmentHeadName: departmentHeadNames.join(', ') || null,
       roleCategory,
       managerNumber: employee.SUPERVISOR_NO,
       managerName: employee.SUPERVISOR,
@@ -107,7 +132,13 @@ export class PopulationService {
   async populate(department: string): Promise<PopulationRow[]> {
     if (!department.trim()) throw new ApplicationError('Department is required', 400, 'INVALID_DEPARTMENT');
     const employees = await this.oracle.listEmployees(department);
-    return Promise.all(employees.map((employee) => this.resolve(employee)));
+    const [departmentHeads, employerMappings] = await Promise.all([
+      this.oracle.listDepartmentHeads().catch(() => null),
+      employees.some((employee) => employee.GRADE !== null && employee.GRADE >= 18)
+        ? this.oracle.listEmployerMappings().catch(() => null)
+        : Promise.resolve([])
+    ]);
+    return Promise.all(employees.map((employee) => this.resolve(employee, { departmentHeads, employerMappings })));
   }
 
   async generate(employeeNumbers: string[]): Promise<GenerationSummary> {

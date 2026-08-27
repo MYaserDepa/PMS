@@ -3,9 +3,20 @@ import { expect, test } from '@playwright/test';
 async function expectNoPageOverflow(page: import('@playwright/test').Page) {
   const dimensions = await page.evaluate(() => ({
     viewport: window.innerWidth,
-    document: document.documentElement.scrollWidth
+    document: document.documentElement.scrollWidth,
+    overflowingElements: [...document.querySelectorAll<HTMLElement>('body *')]
+      .map((element) => ({
+        tag: element.tagName.toLowerCase(),
+        className: element.className,
+        left: Math.round(element.getBoundingClientRect().left),
+        right: Math.round(element.getBoundingClientRect().right),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth
+      }))
+      .filter((element) => element.right > window.innerWidth + 1)
+      .slice(0, 12)
   }));
-  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport);
+  expect(dimensions.document, JSON.stringify(dimensions.overflowingElements, null, 2)).toBeLessThanOrEqual(dimensions.viewport);
 }
 
 async function expectPageFitsViewport(page: import('@playwright/test').Page) {
@@ -61,6 +72,14 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await page.getByRole('button', { name: 'Expand navigation' }).click();
 
+  await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
+  await page.getByLabel('Department').selectOption('Delivery');
+  await page.getByRole('button', { name: 'Load employees' }).click();
+  await expect(page.getByRole('table')).toContainText('Peter Professional');
+  await expect(page.locator('.navigation-shell')).toHaveCSS('width', '272px');
+  await expectNoPageOverflow(page);
+  await page.screenshot({ path: 'test-results/visual-review/desktop-role-mapping.png' });
+
   await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
   await page.getByLabel('Department').selectOption('Delivery');
   await page.getByRole('button', { name: 'Populate' }).click();
@@ -79,4 +98,11 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/mobile-home.png', fullPage: true });
+
+  await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
+  await page.getByLabel('Department').selectOption('Delivery');
+  await page.getByRole('button', { name: 'Load employees' }).click();
+  await expect(page.getByRole('table')).toContainText('Peter Professional');
+  await expectNoPageOverflow(page);
+  await page.screenshot({ path: 'test-results/visual-review/mobile-role-mapping.png', fullPage: true });
 });

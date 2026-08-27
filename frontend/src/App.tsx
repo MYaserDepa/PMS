@@ -23,12 +23,22 @@ type PopulationRow = {
   employer: string | null;
   employerClassification: string;
   departmentHeadStatus: string;
+  departmentHeadName: string | null;
   roleCategory: string | null;
   managerName: string | null;
   formType: string | null;
   status: string;
 };
-type Mapping = { employee_number: string; role_category: string; department: string };
+type RoleCategory = 'ProjectDeliveryProfessional' | 'AdministrativeSupport';
+type MappingEmployee = {
+  employeeNumber: string;
+  fullName: string;
+  department: string | null;
+  grade: number | null;
+  mappingRequired: boolean;
+  mappingNote: string;
+  roleCategory: RoleCategory | null;
+};
 type GenerationSummary = { created: number; alreadyExisting: number; validationFailed: number };
 type ScorecardSummary = {
   id: string;
@@ -98,9 +108,11 @@ export function App() {
   const [population, setPopulation] = useState<PopulationRow[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [summary, setSummary] = useState<GenerationSummary | null>(null);
-  const [mappings, setMappings] = useState<Mapping[]>([]);
-  const [mappingEmployee, setMappingEmployee] = useState('');
-  const [roleCategory, setRoleCategory] = useState('ProjectDeliveryProfessional');
+  const [mappingDepartments, setMappingDepartments] = useState<string[]>([]);
+  const [mappingDepartment, setMappingDepartment] = useState('');
+  const [mappingEmployees, setMappingEmployees] = useState<MappingEmployee[]>([]);
+  const [mappingEdits, setMappingEdits] = useState<Record<string, RoleCategory>>({});
+  const [mappingBusy, setMappingBusy] = useState(false);
   const [operationMessage, setOperationMessage] = useState('');
   const [scorecards, setScorecards] = useState<ScorecardSummary[]>([]);
   const [cycle, setCycle] = useState<Cycle | null>(null);
@@ -191,8 +203,15 @@ export function App() {
         setDepartment(result.departments[0] ?? '');
       }
       if (nextScreen === 'mappings') {
-        const result = await api<{ mappings: Mapping[] }>('/role-categories');
-        setMappings(result.mappings);
+        const result = await api<{ departments: string[] }>('/role-categories/departments');
+        const firstDepartment = result.departments[0] ?? '';
+        setMappingDepartments(result.departments);
+        setMappingDepartment(firstDepartment);
+        setMappingEmployees([]);
+        setMappingEdits({});
+        if (!user?.isHrAdmin && result.departments.length === 1) {
+          await loadMappingEmployees(firstDepartment);
+        }
       }
       if (['home', 'team', 'department', 'all'].includes(nextScreen)) {
         const result = await api<{ scorecards: ScorecardSummary[] }>('/scorecards');
@@ -235,19 +254,50 @@ export function App() {
     }
   }
 
-  async function saveMapping(event: FormEvent) {
-    event.preventDefault();
+  async function loadMappingEmployees(targetDepartment = mappingDepartment) {
     setError('');
     setOperationMessage('');
+    setMappingBusy(true);
     try {
-      await api(`/role-categories/${encodeURIComponent(mappingEmployee)}`, {
-        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ roleCategory })
-      });
-      setOperationMessage(`RoleCategory saved for ${mappingEmployee}`);
-      const result = await api<{ mappings: Mapping[] }>('/role-categories');
-      setMappings(result.mappings);
+      const result = await api<{ employees: MappingEmployee[] }>(
+        `/role-categories/employees?department=${encodeURIComponent(targetDepartment)}`
+      );
+      setMappingEmployees(result.employees);
+      setMappingEdits({});
     } catch (mappingError) {
-      setError(mappingError instanceof Error ? mappingError.message : 'Mapping save failed');
+      setError(mappingError instanceof Error ? mappingError.message : 'Unable to load department employees');
+    } finally {
+      setMappingBusy(false);
+    }
+  }
+
+  function updateMapping(employee: MappingEmployee, value: string) {
+    if (!value) return;
+    const roleCategory = value as RoleCategory;
+    setMappingEdits((current) => {
+      const next = { ...current };
+      if (roleCategory === employee.roleCategory) delete next[employee.employeeNumber];
+      else next[employee.employeeNumber] = roleCategory;
+      return next;
+    });
+  }
+
+  async function saveMappings() {
+    const changes = Object.entries(mappingEdits).map(([employeeNumber, roleCategory]) => ({ employeeNumber, roleCategory }));
+    if (changes.length === 0) return;
+    setError('');
+    setOperationMessage('');
+    setMappingBusy(true);
+    try {
+      await api('/role-categories', {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mappings: changes })
+      });
+      await loadMappingEmployees(mappingDepartment);
+      setOperationMessage(`${changes.length} RoleCategory ${changes.length === 1 ? 'mapping' : 'mappings'} saved`);
+    } catch (mappingError) {
+      setError(mappingError instanceof Error ? mappingError.message : 'Bulk mapping save failed');
+    } finally {
+      setMappingBusy(false);
     }
   }
 
@@ -459,27 +509,52 @@ export function App() {
               <td><input aria-label={`Select ${row.fullName}`} type="checkbox" disabled={row.status !== 'Ready'} checked={selected.includes(row.employeeNumber)} onChange={(event) => setSelected(event.target.checked ? [...selected, row.employeeNumber] : selected.filter((number) => number !== row.employeeNumber))} /></td>
               <td><strong>{row.fullName}</strong><small className="utility-text">{row.employeeNumber}</small></td><td>{row.grade ?? 'Missing'}</td>
               <td>{row.employerClassification === 'NotApplicable' ? row.employer ?? 'Not applicable' : row.employerClassification}</td>
-              <td>{row.departmentHeadStatus}</td><td>{row.roleCategory ?? 'Not applicable'}</td><td>{row.managerName ?? 'Missing'}</td>
+              <td>{row.departmentHeadName ?? 'Not available'}</td><td>{row.roleCategory ?? 'Not applicable'}</td><td>{row.managerName ?? 'Missing'}</td>
               <td>{row.formType ? formNames[row.formType] : 'None'}</td><td><span className={`status status-${row.status === 'Ready' ? 'ready' : 'blocked'}`}>{row.status}</span></td>
             </tr>)}</tbody>
           </table></div>}
         </section>}
 
         {screen === 'mappings' && <section className="screen-section" aria-labelledby="mapping-title">
-          <div className="screen-heading"><div><p className="eyebrow">Administration</p><h1 id="mapping-title">RoleCategory Mapping</h1><p>Classify eligible employees before HR generates their scorecards.</p></div></div>
-          <form className="mapping-form content-panel" onSubmit={saveMapping}>
-            <div className="mapping-field"><label htmlFor="mapping-employee">Employee Number</label><input id="mapping-employee" value={mappingEmployee} onChange={(event) => setMappingEmployee(event.target.value)} required /></div>
-            <div className="mapping-field"><label htmlFor="role-category">RoleCategory</label><select id="role-category" value={roleCategory} onChange={(event) => setRoleCategory(event.target.value)}>
-                <option value="ProjectDeliveryProfessional">Project Delivery / Professional</option>
-                <option value="AdministrativeSupport">Administrative / Support</option>
-              </select></div>
-            <button type="submit">Save mapping<ArrowRight size={16} aria-hidden="true" /></button>
-          </form>
+          <div className="screen-heading"><div><p className="eyebrow">Administration</p><h1 id="mapping-title">RoleCategory Mapping</h1><p>Choose a department, classify one or more eligible employees, then save the changes together.</p></div></div>
+          <div className="toolbar mapping-toolbar">
+            <label htmlFor="mapping-department">Department<select id="mapping-department" value={mappingDepartment} onChange={(event) => {
+              setMappingDepartment(event.target.value);
+              setMappingEmployees([]);
+              setMappingEdits({});
+              setOperationMessage('');
+            }}>
+              {mappingDepartments.map((item) => <option key={item}>{item}</option>)}
+            </select></label>
+            <button type="button" onClick={() => loadMappingEmployees()} disabled={!mappingDepartment || mappingBusy}>
+              {mappingBusy ? 'Loading...' : 'Load employees'}<UsersRound size={16} aria-hidden="true" />
+            </button>
+          </div>
           {operationMessage && <p role="status" className="summary">{operationMessage}</p>}
-          <div className="table-scroll"><table className="data-table">
-            <thead><tr><th scope="col">Employee Number</th><th scope="col">Department</th><th scope="col">RoleCategory</th></tr></thead>
-            <tbody>{mappings.map((mapping) => <tr key={mapping.employee_number}><td>{mapping.employee_number}</td><td>{mapping.department}</td><td>{mapping.role_category}</td></tr>)}</tbody>
-          </table></div>
+          {mappingEmployees.length > 0 && <div className="mapping-worklist content-panel">
+            <div className="panel-heading mapping-worklist-heading"><div><span className="utility-text">{mappingDepartment.toUpperCase()}</span><h2>Department employees</h2></div><span>{Object.keys(mappingEdits).length} pending</span></div>
+            <div className="table-scroll"><table className="data-table mapping-table">
+              <thead><tr><th scope="col">Employee</th><th scope="col">Grade</th><th scope="col">Mapping use</th><th scope="col">RoleCategory</th></tr></thead>
+              <tbody>{mappingEmployees.map((employee) => <tr key={employee.employeeNumber} className={!employee.mappingRequired ? 'mapping-row-inactive' : undefined}>
+                <td><strong>{employee.fullName}</strong><small className="utility-text">{employee.employeeNumber}</small></td>
+                <td>{employee.grade ?? 'Missing'}</td>
+                <td><span className={`status ${employee.mappingRequired ? 'status-ready' : ''}`}>{employee.mappingNote}</span></td>
+                <td><div className="mapping-category"><select
+                  aria-label={`RoleCategory for ${employee.fullName}`}
+                  value={mappingEdits[employee.employeeNumber] ?? employee.roleCategory ?? ''}
+                  disabled={!employee.mappingRequired || mappingBusy}
+                  onChange={(event) => updateMapping(employee, event.target.value)}
+                >
+                  <option value="" disabled>Select category</option>
+                  <option value="ProjectDeliveryProfessional">Project Delivery / Professional</option>
+                  <option value="AdministrativeSupport">Administrative / Support</option>
+                </select></div></td>
+              </tr>)}</tbody>
+            </table></div>
+            <div className="mapping-actions"><p>{Object.keys(mappingEdits).length === 0 ? 'Change a RoleCategory to add it to this save.' : `${Object.keys(mappingEdits).length} employee ${Object.keys(mappingEdits).length === 1 ? 'change' : 'changes'} ready to save.`}</p>
+              <button type="button" onClick={saveMappings} disabled={Object.keys(mappingEdits).length === 0 || mappingBusy}>Save mappings<ArrowRight size={16} aria-hidden="true" /></button></div>
+          </div>}
+          {!mappingBusy && mappingDepartment && mappingEmployees.length === 0 && <div className="empty-state"><span aria-hidden="true">0</span><div><strong>No employees loaded</strong><p>Load the selected department to edit its RoleCategory mappings.</p></div></div>}
         </section>}
         {screen === 'scorecard' && scorecardDetail && <ScorecardView
           scorecard={scorecardDetail}

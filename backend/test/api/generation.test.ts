@@ -4,7 +4,9 @@ import { createApp } from '../../src/app.js';
 import { parseConfig } from '../../src/config.js';
 import { closePool, getPool } from '../../src/database/pool.js';
 import { OracleClient } from '../../src/oracle/client.js';
-import { createFixtureOracleClient, fixtureDepartmentHeads, fixtureEmployees, jsonResponse } from '../fixtures/oracle.js';
+import {
+  createFixtureOracleClient, employerMappingPayload, fixtureDepartmentHeads, fixtureEmployees, jsonResponse
+} from '../fixtures/oracle.js';
 
 const config = parseConfig({
   NODE_ENV: 'test',
@@ -42,6 +44,48 @@ describe('RoleCategory administration', () => {
 
     const mappings = await departmentHead.get('/api/role-categories').expect(200);
     expect(mappings.body.mappings.every((mapping: { department: string }) => mapping.department === 'Delivery')).toBe(true);
+  });
+
+  it('loads department employees and saves several mapping changes in one request', async () => {
+    await expect(hr.get('/api/role-categories/departments').expect(200)).resolves.toMatchObject({
+      body: { departments: expect.arrayContaining(['Delivery', 'Human Resources']) }
+    });
+    const headDepartments = await departmentHead.get('/api/role-categories/departments').expect(200);
+    expect(headDepartments.body.departments).toEqual(['Delivery']);
+    const population = await departmentHead.get('/api/role-categories/employees').query({ department: 'Delivery' }).expect(200);
+    expect(population.body.employees.find((row: { employeeNumber: string }) => row.employeeNumber === '17001')).toMatchObject({
+      fullName: 'Noura Head', mappingRequired: false, mappingNote: 'Department Head form'
+    });
+    expect(population.body.employees.find((row: { employeeNumber: string }) => row.employeeNumber === '17002')).toMatchObject({
+      mappingRequired: true
+    });
+
+    const saved = await departmentHead.put('/api/role-categories').send({ mappings: [
+      { employeeNumber: '17002', roleCategory: 'ProjectDeliveryProfessional' },
+      { employeeNumber: '17003', roleCategory: 'AdministrativeSupport' }
+    ] }).expect(200);
+    expect(saved.body.mappings).toHaveLength(2);
+    await departmentHead.put('/api/role-categories').send({ mappings: [
+      { employeeNumber: '12245', roleCategory: 'AdministrativeSupport' }
+    ] }).expect(403);
+    await employee.get('/api/role-categories/departments').expect(403);
+  });
+
+  it('supports a Department Head responsible for more than one department', async () => {
+    const multiDepartmentHeads = [...fixtureDepartmentHeads, {
+      NAME: 'Human Resources', ORGANIZATION_ID: '20', ORG_INFORMATION2: null,
+      FULL_NAME: 'Noura Head', EMPLOYEE_NUMBER: '17001'
+    }];
+    const multiDepartmentOracle = new OracleClient(config, async (input) => {
+      const url = String(input);
+      if (url === config.ORACLE_DEPARTMENT_HEAD_URL) return jsonResponse({ items: multiDepartmentHeads });
+      if (url === config.ORACLE_EMPLOYER_MAPPING_URL) return jsonResponse(employerMappingPayload());
+      return jsonResponse({ items: fixtureEmployees });
+    });
+    const multiDepartmentHead = request.agent(createApp(config, { oracle: multiDepartmentOracle }));
+    await multiDepartmentHead.post('/api/auth/login').send({ employeeNumber: '17001' }).expect(200);
+    const response = await multiDepartmentHead.get('/api/role-categories/departments').expect(200);
+    expect(response.body.departments).toEqual(['Delivery', 'Human Resources']);
   });
 
   it('uses a newly saved mapping in the next Populate preview', async () => {
@@ -99,7 +143,9 @@ describe('HR Populate and Generate', () => {
     );
     const response = await hr.post('/api/hr/populate').send({ department: 'Delivery' }).expect(200);
     const rows = response.body.rows as Array<Record<string, unknown>>;
-    expect(rows.find((row) => row.employeeNumber === '18001')).toMatchObject({ formType: 'DUGLeadership', status: 'Ready' });
+    expect(rows.find((row) => row.employeeNumber === '18001')).toMatchObject({
+      formType: 'DUGLeadership', status: 'Ready', departmentHeadName: 'Noura Head'
+    });
     expect(rows.find((row) => row.employeeNumber === '18002')).toMatchObject({ formType: 'KBULeadership', status: 'Ready' });
     expect(rows.find((row) => row.employeeNumber === '17001')).toMatchObject({ formType: 'DepartmentHeadKPI', status: 'Ready' });
     expect(rows.find((row) => row.employeeNumber === '17002')).toMatchObject({ formType: 'ProjectDeliveryProfessionalKPI', status: 'Ready' });

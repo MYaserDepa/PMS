@@ -3,7 +3,7 @@ import express from 'express';
 import { z } from 'zod';
 import { AssignmentDataService } from './oracle/assignment-data.js';
 import { OracleClient } from './oracle/client.js';
-import { IdentityService } from './auth/service.js';
+import { IdentityService, type CurrentUser } from './auth/service.js';
 import { clearSessionCookie, readSessionId, SessionStore, setSessionCookie } from './auth/session.js';
 import { ApplicationError } from './errors.js';
 import { PopulationService } from './generation/population-service.js';
@@ -23,7 +23,8 @@ export interface AppDependencies {
 export function createApp(config: BackendConfig, dependencies: AppDependencies = {}) {
   const app = express();
   const oracle = dependencies.oracle ?? new OracleClient(config);
-  const identity = new IdentityService(oracle, new AssignmentDataService(oracle), config);
+  const assignmentData = new AssignmentDataService(oracle);
+  const identity = new IdentityService(oracle, assignmentData, config);
   const population = new PopulationService(oracle, config);
   const scorecardQueries = new ScorecardQueryService();
   const workflow = new WorkflowService();
@@ -77,12 +78,127 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
     return identity.restore(employeeNumber);
   }
 
+  async function roleCategoryDepartments(user: CurrentUser): Promise<string[]> {
+    if (user.isHrAdmin) return population.departments();
+    if (user.departmentHeadStatus !== 'Head') {
+      throw new ApplicationError('RoleCategory access is forbidden', 403, 'FORBIDDEN');
+    }
+    return assignmentData.departmentHeadDepartments(user.employeeNumber);
+  }
+
+  async function saveRoleCategoryMappings(
+    user: CurrentUser,
+    requestedMappings: Array<{ employeeNumber: string; roleCategory: 'ProjectDeliveryProfessional' | 'AdministrativeSupport' }>
+  ) {
+    const employeeNumbers = requestedMappings.map((mapping) => mapping.employeeNumber);
+    if (new Set(employeeNumbers).size !== employeeNumbers.length) {
+      throw new ApplicationError('Each employee can appear only once in a bulk mapping save', 400, 'DUPLICATE_EMPLOYEE_MAPPING');
+    }
+    const allowedDepartments = new Set(await roleCategoryDepartments(user));
+    const [employees, departmentHeads] = await Promise.all([oracle.listEmployees(), oracle.listDepartmentHeads()]);
+    const employeeByNumber = new Map(employees.map((employee) => [employee.EMPLOYEE_NUMBER, employee]));
+
+    const resolved = await Promise.all(requestedMappings.map(async (mapping) => {
+      const employee = employeeByNumber.get(mapping.employeeNumber);
+      if (!employee) throw new ApplicationError('Employee was not found or is not eligible', 404, 'EMPLOYEE_NOT_FOUND');
+      if (!employee.DEPARTMENT) throw new ApplicationError('Target employee has no department', 422, 'MISSING_DEPARTMENT');
+      if (!allowedDepartments.has(employee.DEPARTMENT)) {
+        throw new ApplicationError('Target employee is outside the Department Head scope', 403, 'OUTSIDE_DEPARTMENT_SCOPE');
+      }
+      const isDepartmentHead = await assignmentData.departmentHeadStatus(employee.EMPLOYEE_NUMBER, departmentHeads) === 'Head';
+      if (employee.GRADE === null || employee.GRADE >= 18 || isDepartmentHead) {
+        throw new ApplicationError(
+          `RoleCategory does not apply to employee ${employee.EMPLOYEE_NUMBER}`,
+          422,
+          'ROLE_CATEGORY_NOT_APPLICABLE'
+        );
+      }
+      return { ...mapping, department: employee.DEPARTMENT };
+    }));
+
+    return inTransaction(async (client) => {
+      const repository = new RoleCategoryRepository(client);
+      const saved = [];
+      for (const mapping of resolved) {
+        saved.push(await repository.upsert(
+          mapping.employeeNumber,
+          mapping.roleCategory,
+          mapping.department,
+          user.employeeNumber
+        ));
+      }
+      return saved;
+    });
+  }
+
   app.get('/api/role-categories', async (request, response, next) => {
     try {
       const user = await requireCurrentUser(request);
-      if (!user.isHrAdmin && user.departmentHeadStatus !== 'Head') throw new ApplicationError('RoleCategory access is forbidden', 403, 'FORBIDDEN');
+      const departments = new Set(await roleCategoryDepartments(user));
       const mappings = await new RoleCategoryRepository(getPool()).list();
-      response.json({ mappings: user.isHrAdmin ? mappings : mappings.filter((mapping) => mapping.department === user.department) });
+      response.json({ mappings: mappings.filter((mapping) => departments.has(mapping.department)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/role-categories/departments', async (request, response, next) => {
+    try {
+      response.json({ departments: await roleCategoryDepartments(await requireCurrentUser(request)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/role-categories/employees', async (request, response, next) => {
+    try {
+      const user = await requireCurrentUser(request);
+      const { department } = z.object({ department: z.string().trim().min(1) }).parse(request.query);
+      const allowedDepartments = new Set(await roleCategoryDepartments(user));
+      if (!allowedDepartments.has(department)) {
+        throw new ApplicationError('Department is outside the Department Head scope', 403, 'OUTSIDE_DEPARTMENT_SCOPE');
+      }
+      const [employees, departmentHeads, mappings] = await Promise.all([
+        oracle.listEmployees(department),
+        oracle.listDepartmentHeads(),
+        new RoleCategoryRepository(getPool()).list()
+      ]);
+      const mappingByEmployee = new Map(mappings.map((mapping) => [mapping.employee_number, mapping.role_category]));
+      const rows = await Promise.all(employees.map(async (employee) => {
+        const isDepartmentHead = await assignmentData.departmentHeadStatus(employee.EMPLOYEE_NUMBER, departmentHeads) === 'Head';
+        const mappingRequired = employee.GRADE !== null && employee.GRADE < 18 && !isDepartmentHead;
+        const mappingNote = employee.GRADE === null
+          ? 'Missing grade'
+          : employee.GRADE >= 18
+            ? 'Leadership form'
+            : isDepartmentHead ? 'Department Head form' : 'Mapping required';
+        return {
+          employeeNumber: employee.EMPLOYEE_NUMBER,
+          fullName: employee.FULL_NAME ?? employee.EMPLOYEE_NUMBER,
+          department: employee.DEPARTMENT,
+          grade: employee.GRADE,
+          mappingRequired,
+          mappingNote,
+          roleCategory: mappingByEmployee.get(employee.EMPLOYEE_NUMBER) ?? null
+        };
+      }));
+      rows.sort((left, right) => left.fullName.localeCompare(right.fullName));
+      response.json({ employees: rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put('/api/role-categories', async (request, response, next) => {
+    try {
+      const user = await requireCurrentUser(request);
+      const body = z.object({
+        mappings: z.array(z.object({
+          employeeNumber: z.union([z.string(), z.number()]).transform(String).pipe(z.string().trim().min(1)),
+          roleCategory: z.enum(['ProjectDeliveryProfessional', 'AdministrativeSupport'])
+        })).min(1)
+      }).parse(request.body);
+      response.json({ mappings: await saveRoleCategoryMappings(user, body.mappings) });
     } catch (error) {
       next(error);
     }
@@ -91,16 +207,11 @@ export function createApp(config: BackendConfig, dependencies: AppDependencies =
   app.put('/api/role-categories/:employeeNumber', async (request, response, next) => {
     try {
       const user = await requireCurrentUser(request);
-      if (!user.isHrAdmin && user.departmentHeadStatus !== 'Head') throw new ApplicationError('RoleCategory changes are forbidden', 403, 'FORBIDDEN');
       const body = z.object({ roleCategory: z.enum(['ProjectDeliveryProfessional', 'AdministrativeSupport']) }).parse(request.body);
-      const employee = await oracle.getEmployee(request.params.employeeNumber);
-      if (!employee.DEPARTMENT) throw new ApplicationError('Target employee has no department', 422, 'MISSING_DEPARTMENT');
-      if (!user.isHrAdmin && employee.DEPARTMENT !== user.department) {
-        throw new ApplicationError('Target employee is outside the Department Head scope', 403, 'OUTSIDE_DEPARTMENT_SCOPE');
-      }
-      const mapping = await inTransaction((client) =>
-        new RoleCategoryRepository(client).upsert(employee.EMPLOYEE_NUMBER, body.roleCategory, employee.DEPARTMENT!, user.employeeNumber)
-      );
+      const [mapping] = await saveRoleCategoryMappings(user, [{
+        employeeNumber: request.params.employeeNumber.trim(),
+        roleCategory: body.roleCategory
+      }]);
       response.json({ mapping });
     } catch (error) {
       next(error);

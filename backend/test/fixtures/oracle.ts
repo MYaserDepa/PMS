@@ -33,8 +33,8 @@ export const oracleEmployees: OracleEmployee[] = [
 ];
 
 export const departmentHeads = [
-  { NAME: 'Delivery', ORGANIZATION_ID: '10', ORG_INFORMATION2: null, FULL_NAME: 'Department Head', EMPLOYEE_NUMBER: 17001 },
-  { NAME: 'Delivery', ORGANIZATION_ID: '10', ORG_INFORMATION2: null, FULL_NAME: 'Department Head Duplicate', EMPLOYEE_NUMBER: '17001' }
+  { NAME: 'Delivery', ORGANIZATION_ID: '10', ORG_INFORMATION2: null, FULL_NAME: 'Noura Head', EMPLOYEE_NUMBER: 17001 },
+  { NAME: 'Delivery', ORGANIZATION_ID: '10', ORG_INFORMATION2: null, FULL_NAME: 'Noura Head', EMPLOYEE_NUMBER: '17001' }
 ];
 
 export const employerMappings = [

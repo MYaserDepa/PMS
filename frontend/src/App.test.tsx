@@ -44,8 +44,8 @@ describe('App', () => {
       isHrAdmin: true, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
     };
     const rows = [
-      { employeeNumber: '18001', fullName: 'Dalia Leader', grade: 18, employer: 'DUG Corporate', employerClassification: 'DUG', departmentHeadStatus: 'NotApplicable', roleCategory: null, managerName: 'Mariam Manager', formType: 'DUGLeadership', status: 'Ready' },
-      { employeeNumber: '17005', fullName: 'Noor NoManager', grade: 17, employer: 'DUG Corporate', employerClassification: 'NotApplicable', departmentHeadStatus: 'NotHead', roleCategory: null, managerName: null, formType: null, status: 'Missing Manager' }
+      { employeeNumber: '18001', fullName: 'Dalia Leader', grade: 18, employer: 'DUG Corporate', employerClassification: 'DUG', departmentHeadStatus: 'NotApplicable', departmentHeadName: 'Noura Head', roleCategory: null, managerName: 'Mariam Manager', formType: 'DUGLeadership', status: 'Ready' },
+      { employeeNumber: '17005', fullName: 'Noor NoManager', grade: 17, employer: 'DUG Corporate', employerClassification: 'NotApplicable', departmentHeadStatus: 'NotHead', departmentHeadName: 'Noura Head', roleCategory: null, managerName: null, formType: null, status: 'Missing Manager' }
     ];
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ user }) })
@@ -56,7 +56,30 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Create PMS Submissions' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Populate' }));
     expect(await screen.findByText('DUG Leadership Scorecard')).toBeInTheDocument();
+    expect(screen.getAllByText('Noura Head')).toHaveLength(2);
     expect(screen.getByText('Missing Manager')).toBeInTheDocument();
     expect(screen.getByLabelText('Select Noor NoManager')).toBeDisabled();
+  });
+
+  it('auto-loads the only department for a Department Head mapping worklist', async () => {
+    const user = {
+      employeeNumber: '17001', fullName: 'Noura Head', department: 'Delivery',
+      isHrAdmin: false, isItAdmin: false, isManager: true, departmentHeadStatus: 'Head'
+    };
+    const employees = [
+      { employeeNumber: '17001', fullName: 'Noura Head', department: 'Delivery', grade: 17, mappingRequired: false, mappingNote: 'Department Head form', roleCategory: null },
+      { employeeNumber: '17002', fullName: 'Peter Professional', department: 'Delivery', grade: 17, mappingRequired: true, mappingNote: 'Mapping required', roleCategory: 'ProjectDeliveryProfessional' }
+    ];
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ user }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ scorecards: [] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ departments: ['Delivery'] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ employees }) }));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'RoleCategory Mapping' }));
+    expect(await screen.findByRole('table')).toHaveTextContent('Peter Professional');
+    expect(screen.getByLabelText('Department')).toHaveValue('Delivery');
+    expect(screen.getByLabelText('RoleCategory for Noura Head')).toBeDisabled();
+    expect(screen.getByLabelText('RoleCategory for Peter Professional')).toHaveValue('ProjectDeliveryProfessional');
   });
 });
