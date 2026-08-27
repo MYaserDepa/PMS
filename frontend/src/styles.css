@@ -395,10 +395,6 @@
   .history li strong { @apply text-xs font-extrabold text-carbon; }
   .history li span:not(.history-node),
   .history li time { @apply text-[0.68rem] text-slate; }
-  .history-movement {
-    font-family: var(--font-mono);
-    @apply rounded bg-[#f2eee8] px-1.5 py-0.5;
-  }
   .history li p { @apply mb-0 basis-full rounded-md bg-[#f7f4ef] px-3 py-2 text-xs leading-5 text-ink; }
   .scorecard-table label { @apply my-2 block min-w-48; }
 }

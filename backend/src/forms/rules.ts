@@ -43,11 +43,11 @@ function present(value: string | null | undefined): boolean {
 }
 
 function validateWeightTotal(rows: FormLine[]): void {
-  if (rows.some((row) => row.weight === null || row.weight === undefined || row.weight <= 0 || row.weight > 100)) {
-    fail('Each weight must be greater than 0 and no more than 100', 'INVALID_WEIGHT');
+  if (rows.some((row) => !Number.isInteger(row.weight) || row.weight! <= 0 || row.weight! > 100)) {
+    fail('Each weight must be a whole number greater than 0 and no more than 100', 'INVALID_WEIGHT');
   }
-  const thousandths = rows.reduce((sum, row) => sum + Math.round(row.weight! * 1000), 0);
-  if (thousandths !== 100_000) fail('Total weight must equal exactly 100 percent', 'INVALID_WEIGHT_TOTAL');
+  const total = rows.reduce((sum, row) => sum + row.weight!, 0);
+  if (total !== 100) fail('Total weight must equal exactly 100 percent', 'INVALID_WEIGHT_TOTAL');
 }
 
 function validatePlan(formType: FormType, rows: FormLine[], phase: PerformancePhase): void {
@@ -68,6 +68,7 @@ function validatePlan(formType: FormType, rows: FormLine[], phase: PerformancePh
     }
     if (phase === 'MidYear') {
       if (!midYearStatuses.has(row.midYearStatus ?? '')) fail('Mid-Year status must be OnTrack, AtRisk, or Blocked', 'INVALID_MID_YEAR_STATUS');
+      if (!present(row.midYearComment)) fail('Mid-Year comment is required for every KPI or objective', 'MISSING_MID_YEAR_COMMENT');
     }
   }
   validateWeightTotal(rows);
@@ -87,6 +88,7 @@ export function validateEmployeeSubmission(formType: FormType, phase: Performanc
     return;
   }
   if (phase !== 'YearEnd') return;
+  validateWeightTotal(rows);
   for (const row of rows) {
     if (formType !== 'AdministrativeSupport') {
       if (!present(row.actual)) fail('Actual is required for every KPI or objective', 'MISSING_ACTUAL');
@@ -95,19 +97,34 @@ export function validateEmployeeSubmission(formType: FormType, phase: Performanc
         fail('Employee evidence is required for SelfRating 4 or 5', 'EMPLOYEE_EVIDENCE_REQUIRED');
       }
     }
+    if (!present(row.employeeComment)) fail('Employee comment is required for every KPI, objective, or standard', 'MISSING_EMPLOYEE_COMMENT');
   }
 }
 
 export function validateManagerApproval(formType: FormType, phase: PerformancePhase, rows: FormLine[]): void {
+  validateWeightTotal(rows);
+  if (phase === 'MidYear') {
+    if (formType !== 'AdministrativeSupport' && rows.some((row) => !present(row.managerComment))) {
+      fail('Manager Mid-Year comment is required for every KPI or objective', 'MISSING_MANAGER_COMMENT');
+    }
+    return;
+  }
   if (phase !== 'YearEnd') return;
   for (const row of rows) {
     validateRating(row.managerRating, 'ManagerRating');
+    if (!present(row.managerComment)) fail('Manager comment is required for every KPI, objective, or standard', 'MISSING_MANAGER_COMMENT');
     if (row.managerRating >= 4 && !present(row.managerEvidenceUrl)) {
       fail('Manager evidence is required for ManagerRating 4 or 5', 'MANAGER_EVIDENCE_REQUIRED');
     }
   }
   if (formType === 'AdministrativeSupport' && rows.some((row) => row.selfRating !== null && row.selfRating !== undefined)) {
     fail('Administrative / Support does not use SelfRating', 'SELF_RATING_NOT_ALLOWED');
+  }
+}
+
+export function validateDevelopmentNotes(notes: string | null | undefined, participant: 'Employee' | 'LineManager'): void {
+  if (!present(notes)) {
+    fail(`${participant === 'Employee' ? 'Employee' : 'Manager'} Development Notes are required`, 'MISSING_DEVELOPMENT_NOTES');
   }
 }
 

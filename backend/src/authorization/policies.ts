@@ -17,7 +17,7 @@ export function canViewScorecard(user: CurrentUser, scorecard: ScorecardAccessRe
 }
 
 export function canMutateScorecard(user: CurrentUser, scorecard: ScorecardAccessRecord): boolean {
-  return !user.isItAdmin && scorecard.status !== 'Closed' && scorecard.currentAssigneeEmployeeNumber === user.employeeNumber;
+  return scorecard.status !== 'Closed' && scorecard.currentAssigneeEmployeeNumber === user.employeeNumber;
 }
 
 export type Participant = 'Employee' | 'LineManager';

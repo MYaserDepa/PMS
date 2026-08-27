@@ -3,7 +3,7 @@ import type { PoolClient } from 'pg';
 import { allowedLineFields, allowedScorecardFields, type Participant } from '../authorization/policies.js';
 import { ApplicationError } from '../errors.js';
 import type { WorkflowCommand, WorkflowRow } from '../workflow/workflow-service.js';
-import { calculateOverallRating, validateEmployeeSubmission, validateManagerApproval, type FormLine } from './rules.js';
+import { calculateOverallRating, validateDevelopmentNotes, validateEmployeeSubmission, validateManagerApproval, type FormLine } from './rules.js';
 
 const lineInputSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String).optional(),
@@ -13,7 +13,7 @@ const lineInputSchema = z.object({
   linkedStrategyReferenceId: z.union([z.string(), z.number()]).transform(String).nullable().optional(),
   measureDescription: z.string().nullable().optional(),
   target: z.string().nullable().optional(),
-  weight: z.number().positive().max(100).nullable().optional(),
+  weight: z.number().int().positive().max(100).nullable().optional(),
   actual: z.string().nullable().optional(),
   midYearStatus: z.enum(['OnTrack', 'AtRisk', 'Blocked']).nullable().optional(),
   midYearComment: z.string().nullable().optional(),
@@ -58,17 +58,27 @@ export class FormService {
     if (payload.standards !== undefined) await this.saveStandards(client, row, participant, payload.standards);
     await this.saveDevelopment(client, row, participant, payload);
 
-    if ((action === 'Initiated' || action === 'Resubmitted') && participant === 'Employee') {
-      const rows = await this.validationRows(client, row);
-      validateEmployeeSubmission(row.form_type, row.current_phase, rows);
+    if (['SavedDraft', 'Initiated', 'Resubmitted'].includes(action) && participant === 'Employee') {
+      if (row.current_phase === 'Development') {
+        const notes = await this.developmentNotes(client, row.id, participant);
+        validateDevelopmentNotes(notes, participant);
+      } else {
+        const rows = await this.validationRows(client, row);
+        validateEmployeeSubmission(row.form_type, row.current_phase, rows);
+      }
     }
-    if (action === 'Approved' && participant === 'LineManager') {
-      const rows = await this.validationRows(client, row);
-      validateManagerApproval(row.form_type, row.current_phase, rows);
-      if (row.current_phase === 'YearEnd') {
-        const overall = calculateOverallRating(rows.map((item) => ({ weight: item.weight ?? 0, managerRating: item.managerRating ?? null })));
-        if (overall === null) throw new ApplicationError('Every required manager rating is needed for OverallRating', 422, 'INCOMPLETE_MANAGER_RATINGS');
-        await client.query('UPDATE scorecards SET overall_rating = $2 WHERE id = $1', [row.id, overall]);
+    if ((action === 'SavedDraft' || action === 'Approved') && participant === 'LineManager') {
+      if (row.current_phase === 'Development') {
+        const notes = await this.developmentNotes(client, row.id, participant);
+        validateDevelopmentNotes(notes, participant);
+      } else {
+        const rows = await this.validationRows(client, row);
+        validateManagerApproval(row.form_type, row.current_phase, rows);
+        if (action === 'Approved' && row.current_phase === 'YearEnd') {
+          const overall = calculateOverallRating(rows.map((item) => ({ weight: item.weight ?? 0, managerRating: item.managerRating ?? null })));
+          if (overall === null) throw new ApplicationError('Every required manager rating is needed for OverallRating', 422, 'INCOMPLETE_MANAGER_RATINGS');
+          await client.query('UPDATE scorecards SET overall_rating = $2 WHERE id = $1', [row.id, overall]);
+        }
       }
     }
   }
@@ -167,5 +177,11 @@ export class FormService {
        FROM scorecard_lines WHERE scorecard_id = $1 ORDER BY display_order`, [row.id]
     );
     return result.rows;
+  }
+
+  private async developmentNotes(client: PoolClient, scorecardId: string, participant: Participant): Promise<string | null> {
+    const column = participant === 'Employee' ? 'employee_development_notes' : 'manager_development_notes';
+    const result = await client.query<{ notes: string | null }>(`SELECT ${column} AS notes FROM scorecards WHERE id = $1`, [scorecardId]);
+    return result.rows[0]?.notes ?? null;
   }
 }

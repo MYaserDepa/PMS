@@ -180,11 +180,29 @@ test('all five generated form types render from the server-provided form assignm
   }
 });
 
+test('employee 21975 can work on their own Administrative Support scorecard', async ({ page }) => {
+  await apiLogin(page, '12245');
+  await expect((await page.request.put(`${backendUrl}/role-categories/21975`, { data: { roleCategory: 'AdministrativeSupport' } })).ok()).toBe(true);
+  await expect((await page.request.post(`${backendUrl}/hr/generate`, { data: { employeeNumbers: ['21975'] } })).ok()).toBe(true);
+  await page.request.post(`${backendUrl}/auth/logout`);
+
+  await login(page, '21975');
+  await page.getByRole('button', { name: 'Open Imran Systems' }).click();
+  await expect(page.getByRole('heading', { name: 'Administrative / Support Non-KPI Form' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save as Draft' }).click();
+  const history = page.getByRole('region', { name: 'Workflow history' });
+  await expect(history).toContainText('Saved Draft');
+  await expect(history).not.toContainText('Employee → Employee');
+});
+
 test('scenarios 7 through 9: Goal Setting draft, weight validation, rejection, resubmission, and approval', async ({ page }) => {
   test.setTimeout(90_000);
   await login(page, '18001');
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await page.getByRole('button', { name: 'Add row' }).click();
+  await expect(page.getByLabel('Weight 1')).toHaveAttribute('step', '1');
+  await page.getByRole('button', { name: 'Save as Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('requires wording, a measure, and a target');
   await page.getByLabel('Perspective 1').selectOption('Customer');
   await page.getByLabel('Objective / KPI 1').fill('Deliver the 2027 strategic outcome');
   await page.getByLabel('Linked Strategy Reference 1').selectOption({ label: 'Execution Excellence' });
@@ -192,10 +210,14 @@ test('scenarios 7 through 9: Goal Setting draft, weight validation, rejection, r
   await page.getByLabel('Target 1').fill('100% completed');
   await page.getByLabel('Weight 1').fill('90');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('Total weight must equal exactly 100 percent');
+  await page.getByLabel('Weight 1').fill('100');
+  await page.getByRole('button', { name: 'Save as Draft' }).click();
   await expect(page.getByRole('region', { name: 'Workflow history' })).toContainText('Saved Draft');
   await page.reload();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await expect(page.getByLabel('Objective / KPI 1')).toHaveValue('Deliver the 2027 strategic outcome');
+  await page.getByLabel('Weight 1').fill('90');
   await page.getByRole('button', { name: 'Initiate' }).click();
   await expect(page.getByRole('alert')).toContainText('Total weight must equal exactly 100 percent');
   await page.getByLabel('Weight 1').fill('100');
@@ -246,7 +268,8 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
     ['17001', [1, 2, 3, 4].map((index) => ({ title: `Department KPI ${index}`, linkedStrategyReferenceId: strategyId, measureDescription: 'Completion', target: '100%', weight: 25 }))],
     ['17002', [1, 2, 3, 4].map((index) => ({ performanceArea: 'Quality', title: `Professional KPI ${index}`, linkedStrategyReferenceId: strategyId, measureDescription: 'Completion', target: '100%', weight: 25 }))],
     ['17003', undefined],
-    ['17004', undefined]
+    ['17004', undefined],
+    ['21975', undefined]
   ] as const;
   for (const [employeeNumber, lines] of goalSetup) {
     const scorecard = await ownScorecard(page, employeeNumber);
@@ -309,7 +332,10 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
       await apiAction(page, scorecard.id, 'Initiated', { lines });
     }
     await apiLogin(page, '30001');
-    await apiAction(page, scorecard.id, 'Approved');
+    const managerDetail = await scorecardDetail(page, scorecard.id);
+    await apiAction(page, scorecard.id, 'Approved', managerDetail.form_type === 'AdministrativeSupport' ? {} : {
+      lines: managerDetail.lines.map((line: { id: string }) => ({ id: String(line.id), managerComment: 'Progress reviewed' }))
+    });
   }
 
   await apiLogin(page, '12245');
@@ -323,7 +349,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await page.getByLabel('Actual 1').fill('Delivered');
-  await page.getByLabel('Self Rating 1').selectOption('4');
+  await page.getByLabel('Self Rating 1').selectOption('3');
   await page.getByLabel('Employee Comment 1').fill('Exceeded the revised outcome');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
   await expect(page.getByRole('region', { name: 'Workflow history' })).toContainText('Saved Draft');
@@ -337,7 +363,8 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByLabel('Employee Number').fill('18001');
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
-  await expect(page.getByLabel('Self Rating 1')).toHaveValue('4');
+  await expect(page.getByLabel('Self Rating 1')).toHaveValue('3');
+  await page.getByLabel('Self Rating 1').selectOption('4');
   await page.getByRole('button', { name: 'Initiate' }).click();
   await expect(page.getByRole('alert')).toContainText('Employee evidence is required');
   await page.getByLabel('Employee Evidence Reference 1').fill('EMP-EVIDENCE-2027');
@@ -350,7 +377,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'My Team' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await expect(page.getByLabel('Self Rating 1')).toHaveValue('4');
-  await page.getByLabel('Manager Rating 1').selectOption('4');
+  await page.getByLabel('Manager Rating 1').selectOption('3');
   await page.getByLabel('Manager Comment 1').fill('Exceeded the outcome');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
   await page.getByRole('button', { name: 'Logout' }).click();
@@ -363,7 +390,8 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'My Team' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
-  await expect(page.getByLabel('Manager Rating 1')).toHaveValue('4');
+  await expect(page.getByLabel('Manager Rating 1')).toHaveValue('3');
+  await page.getByLabel('Manager Rating 1').selectOption('4');
   await page.getByRole('button', { name: 'Approve' }).click();
   await expect(page.getByRole('alert')).toContainText('Manager evidence is required');
   await page.getByLabel('Manager Evidence Reference 1').fill('MGR-EVIDENCE-2027');
@@ -388,7 +416,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'Approve' }).click();
   await expect(page.getByText('Overall Rating: 3.0')).toBeVisible();
 
-  for (const employeeNumber of ['18002', '17001', '17002', '17004']) {
+  for (const employeeNumber of ['18002', '17001', '17002', '17004', '21975']) {
     const scorecard = await ownScorecard(page, employeeNumber);
     const employeeDetail = await scorecardDetail(page, scorecard.id);
     if (employeeDetail.form_type === 'AdministrativeSupport') {
@@ -411,7 +439,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'Open next phase' }).click();
   await expect(page.getByRole('status')).toContainText('Development opened');
 
-  for (const employeeNumber of ['18002', '17001', '17002', '17003', '17004']) {
+  for (const employeeNumber of ['18002', '17001', '17002', '17003', '17004', '21975']) {
     const scorecard = await ownScorecard(page, employeeNumber);
     await apiAction(page, scorecard.id, 'Initiated', { employeeDevelopmentNotes: 'Complete development priorities' });
     await apiLogin(page, '30001');

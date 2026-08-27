@@ -329,7 +329,9 @@ HR Admin must not impersonate another employee through the workflow.
 
 `EMPLOYEE_NUMBER = "21975"` is the IT System Admin for the POC.
 
-The IT System Admin is a technical role and does not participate in normal PMS business workflow.
+The IT System Admin role grants no elevated participation in normal PMS business workflow.
+
+If employee `21975` has their own generated PMS submission, they may still act as the Employee when the pending workflow assignee is exactly `21975`.
 
 For the POC, IT SysAdmin may be allowed to inspect technical data/screens needed for testing and troubleshooting.
 
@@ -690,6 +692,8 @@ A manager must not silently edit employee-owned content.
 
 The current participant may save changes without advancing the workflow.
 
+Save as Draft is not a partial-save mechanism in this POC. It must validate every applicable field owned by the current participant, conditional evidence requirements, and the exact 100% weight total before persisting.
+
 ### Initiate
 
 Used by the employee when starting or submitting the current phase.
@@ -759,6 +763,8 @@ Each history entry should contain at least:
 - Date/Time;
 - From Participant;
 - To Participant where applicable.
+
+The history UI does not need to display From Participant or To Participant movement text. Keeping those values in the immutable history record is sufficient.
 
 Typical actions:
 
@@ -926,12 +932,13 @@ For all weighted forms:
 
 `Total Weight = 100%`
 
-Submission must be blocked if the applicable weights do not total exactly 100%.
+Save as Draft, Initiate, Resubmit, and Approve must be blocked if the applicable weights do not total exactly 100%.
 
 The UI should show a running total.
 
 Recommended validation:
 
+- each weight is an integer;
 - each weight > 0;
 - each weight <= 100;
 - total = 100%.
@@ -1202,7 +1209,7 @@ Recommended types:
 | Measure | Text |
 | Target | Text |
 | Actual | Text |
-| Weight | Decimal |
+| Weight | Integer |
 | Rating | Integer 1-5 |
 | Comments | Long Text |
 | EmployeeEvidenceURL | URL/Text |
@@ -1704,7 +1711,8 @@ The POC is successful when the following scenarios can be demonstrated.
 
 ### Scenario 9 — Weight validation
 
-- A weighted form cannot be submitted if total weight is not exactly 100%.
+- A weighted form cannot be saved as draft or submitted if total weight is not exactly 100%.
+- A fractional weight is rejected.
 
 ### Scenario 10 — Evidence validation
 
@@ -1778,7 +1786,11 @@ The POC is successful when the following scenarios can be demonstrated.
 37. Strategy data may be seeded/configured directly with no administration UI.
 38. Cycle/form configuration may be seeded directly with no advanced UI.
 39. Basic workflow history is sufficient; no advanced audit subsystem is required.
-40. Operational infrastructure such as queues, retries, monitoring, alerting, and deployment concerns is out of scope.
+40. Save as Draft requires all applicable participant-owned fields and the exact 100% weight total; incomplete drafts are not supported.
+41. Weights are integers from 1 to 100.
+42. IT System Admin status does not block employee `21975` from acting on a submission pending specifically with `21975`.
+43. Participant movement remains stored in workflow history but is not displayed in the history UI.
+44. Operational infrastructure such as queues, retries, monitoring, alerting, and deployment concerns is out of scope.
 
 ---
 

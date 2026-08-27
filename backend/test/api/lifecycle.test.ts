@@ -79,7 +79,7 @@ describe('complete annual lifecycle rules', () => {
 
   it('keeps Year-End drafts private and enforces separate employee and manager evidence', async () => {
     let lineId = (await dugEmployee.get(`/api/scorecards/${dugId}`).expect(200)).body.scorecard.lines[0].id;
-    await action(dugEmployee, dugId, 'SavedDraft', { lines: [{ id: lineId, actual: 'Delivered', selfRating: 4, employeeComment: 'Strong result' }] });
+    await action(dugEmployee, dugId, 'SavedDraft', { lines: [{ id: lineId, actual: 'Delivered', selfRating: 3, employeeComment: 'Strong result' }] });
     const hiddenEmployeeDraft = await manager.get(`/api/scorecards/${dugId}`).expect(200);
     expect(hiddenEmployeeDraft.body.scorecard.lines[0]).toMatchObject({ actual: null, self_rating: null, employee_comment: null });
     await action(dugEmployee, dugId, 'Initiated', { lines: [{ id: lineId, actual: 'Delivered', selfRating: 4, employeeComment: 'Strong result' }] }, 422);
@@ -87,7 +87,7 @@ describe('complete annual lifecycle rules', () => {
       id: lineId, actual: 'Delivered', selfRating: 4, employeeComment: 'Strong result', employeeEvidenceUrl: 'EMP-REF-2027'
     }] });
     lineId = (await manager.get(`/api/scorecards/${dugId}`).expect(200)).body.scorecard.lines[0].id;
-    await action(manager, dugId, 'SavedDraft', { lines: [{ id: lineId, managerRating: 4, managerComment: 'Exceeds plan' }] });
+    await action(manager, dugId, 'SavedDraft', { lines: [{ id: lineId, managerRating: 3, managerComment: 'Meets plan' }] });
     const hiddenManagerDraft = await dugEmployee.get(`/api/scorecards/${dugId}`).expect(200);
     expect(hiddenManagerDraft.body.scorecard.lines[0]).toMatchObject({ manager_rating: null, manager_comment: null });
     await action(manager, dugId, 'Approved', { lines: [{ id: lineId, managerRating: 4, managerComment: 'Exceeds plan' }] }, 422);

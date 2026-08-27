@@ -20,6 +20,7 @@ const otherEmployee = request.agent(app);
 const departmentHead = request.agent(app);
 const itAdmin = request.agent(app);
 let scorecardId: string;
+let itAdminScorecardId: string;
 let strategyReferenceId: string;
 
 function goalLines(employeeNumber: string) {
@@ -40,9 +41,11 @@ beforeAll(async () => {
   await itAdmin.post('/api/auth/login').send({ employeeNumber: '21975' }).expect(200);
   await hr.put('/api/role-categories/17002').send({ roleCategory: 'ProjectDeliveryProfessional' }).expect(200);
   await hr.put('/api/role-categories/17003').send({ roleCategory: 'AdministrativeSupport' }).expect(200);
-  await hr.post('/api/hr/generate').send({ employeeNumbers: ['18001', '18002', '17001', '17002', '17003'] }).expect(200);
-  const result = await getPool().query<{ id: string }>("SELECT id FROM scorecards WHERE employee_number = '18001'");
-  scorecardId = result.rows[0]!.id;
+  await hr.put('/api/role-categories/21975').send({ roleCategory: 'AdministrativeSupport' }).expect(200);
+  await hr.post('/api/hr/generate').send({ employeeNumbers: ['18001', '18002', '17001', '17002', '17003', '21975'] }).expect(200);
+  const result = await getPool().query<{ id: string; employee_number: string }>("SELECT id, employee_number FROM scorecards WHERE employee_number IN ('18001', '21975')");
+  scorecardId = result.rows.find((row) => row.employee_number === '18001')!.id;
+  itAdminScorecardId = result.rows.find((row) => row.employee_number === '21975')!.id;
   strategyReferenceId = (await getPool().query<{ id: string }>('SELECT id FROM strategy_references ORDER BY id LIMIT 1')).rows[0]!.id;
 });
 
@@ -66,17 +69,24 @@ describe('scorecard visibility API', () => {
 });
 
 describe('transactional Employee to Line Manager workflow', () => {
-  it('rejects business mutation by IT and a non-current participant', async () => {
+  it('allows IT admin to act only when their employee number owns the pending workflow', async () => {
     await itAdmin.post(`/api/scorecards/${scorecardId}/actions/SavedDraft`).send({}).expect(409);
+    await itAdmin.post(`/api/scorecards/${itAdminScorecardId}/actions/SavedDraft`).send({}).expect(200);
     await manager.post(`/api/scorecards/${scorecardId}/actions/Approved`).send({}).expect(409);
   });
 
   it('supports draft, initiate, reject, resubmit, approve, and stale-click protection', async () => {
     await employee.post(`/api/scorecards/${scorecardId}/actions/SavedDraft`).send({
       comment: 'Goal draft', lines: [{ title: 'Partial draft' }]
+    }).expect(422);
+    await employee.post(`/api/scorecards/${scorecardId}/actions/SavedDraft`).send({
+      comment: 'Invalid total', lines: [{ ...goalLines('18001')![0], weight: 90 }]
+    }).expect(422);
+    await employee.post(`/api/scorecards/${scorecardId}/actions/SavedDraft`).send({
+      comment: 'Goal draft', lines: goalLines('18001')
     }).expect(200);
     const draft = await employee.get(`/api/scorecards/${scorecardId}`).expect(200);
-    expect(draft.body.scorecard.lines[0]).toMatchObject({ title: 'Partial draft', weight: null });
+    expect(draft.body.scorecard.lines[0]).toMatchObject({ title: 'Deliver 2027 outcome', weight: 100 });
     await employee.post(`/api/scorecards/${scorecardId}/actions/Initiated`).send({
       lines: [{ ...goalLines('18001')![0], weight: 90 }]
     }).expect(422);

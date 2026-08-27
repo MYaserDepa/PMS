@@ -61,7 +61,7 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await page.setViewportSize({ width: 1366, height: 768 });
   await expectNoPageOverflow(page);
   await expectPageFitsViewport(page);
-  await expect(page.locator('.content-home')).toHaveCSS('background-size', '32px 32px, 32px 32px');
+  await expect(page.locator('body')).toHaveCSS('background-size', '32px 32px, 32px 32px');
   await page.screenshot({ path: 'test-results/visual-review/desktop-home.png', fullPage: true });
 
   await page.setViewportSize({ width: 1366, height: 500 });

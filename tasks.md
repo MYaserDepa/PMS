@@ -91,7 +91,7 @@ Goal: create the relational base for one 2027 cycle, five fixed form types, per-
   - Snapshot data includes employee number, name, department, job, position, grade, employer, supervisor details, Department Head status, RoleCategory when applicable, and resolved form type.
   - Form type, phase, status, workflow action, workflow step status, RoleCategory, Mid-Year status, and rating values use constrained values.
   - A database constraint prevents more than one scorecard for the same employee number and year.
-  - Ratings accept only integers 1 through 5. Weights support decimal values.
+  - Ratings accept only integers 1 through 5. Weights accept only integers from 1 through 100.
   - Targets and actuals remain text.
   - Workflow history rows cannot be updated or deleted through the application repository.
 - Testing requirements:
@@ -452,7 +452,7 @@ Goal: render exactly the five forms and complete the Goal Setting draft, submit,
   - The manager cannot overwrite employee goals or edit employee-owned fields.
   - A `SavedDraft` history entry records the action.
 - Testing requirements:
-  - API integration-test valid partial drafts, forged manager edits, and draft persistence.
+  - API integration-test incomplete draft rejection, forged manager edits, and complete draft persistence.
   - Component-test add/remove behavior and running totals.
   - Browser-test employee draft save, refresh, and continued editing.
 
@@ -569,7 +569,7 @@ Goal: enforce confidential drafts, rating rules, separate evidence, and weighted
   - No partial final OverallRating is shown when a required manager rating is missing.
   - No calibration or forced distribution adjustment is applied.
 - Testing requirements:
-  - Unit-test decimal weights, rounding to one decimal, all five forms, missing ratings, and known sample calculations.
+  - Unit-test integer weights, overall-rating rounding to one decimal, all five forms, missing ratings, and known sample calculations.
   - API and component tests confirm the displayed result matches the backend result.
 
 ### M8-T4: Complete the Year-End browser journey
@@ -814,6 +814,21 @@ Goal: keep the trusted login identity in the server session and avoid full-popul
 
 - [x] Backend unit, API integration, build, lint, and type checks pass.
 - [x] Browser login, refresh/session restoration, role category, and submission workflow paths pass.
+
+## Milestone 17: workflow and form validation corrections
+
+Goal: let configured admin identities complete their own assigned PMS workflow and apply complete integer-weight validation consistently.
+
+- [x] Allow employee `21975` to act on a scorecard assigned to `21975` without granting IT System Admin workflow rights over other scorecards.
+- [x] Remove participant movement text from the workflow history presentation while retaining the required immutable history data.
+- [x] Require the current participant's applicable fields and an exact 100% total for Save as Draft, Initiate, Resubmit, and Approve actions.
+- [x] Store and accept KPI weights as whole numbers from 1 to 100 and use a UI step of 1.
+- [x] Apply the integer weight schema change through a migration and validate the affected API and browser workflows.
+
+### Milestone 17 gate
+
+- [x] Backend unit, database integration, API integration, frontend component, build, lint, and type checks pass.
+- [x] Browser tests cover employee `21975`, incomplete draft rejection, exact weight validation, integer weight entry, and simplified workflow history.
 
 ## Dependency summary
 

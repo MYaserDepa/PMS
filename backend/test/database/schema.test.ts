@@ -23,7 +23,15 @@ describe('migrations and fixed seed configuration', () => {
     expect(cycle.rows[0]).toMatchObject({ year: 2027, name: 'PMS 2027', current_phase: 'GoalSetting' });
     expect(forms.rows).toHaveLength(5);
     expect(ratings.rows.map((row) => row.rating).sort()).toEqual([1, 2, 3, 4, 5]);
-    expect(standards.rows[0]).toEqual({ count: '6', weight: '100.000' });
+    expect(standards.rows[0]).toEqual({ count: '6', weight: '100' });
+    const weightColumns = await getPool().query<{ table_name: string; data_type: string }>(
+      `SELECT table_name, data_type FROM information_schema.columns
+       WHERE table_schema = 'public' AND column_name = 'weight'
+         AND table_name IN ('strategy_references', 'admin_standard_templates', 'scorecard_lines', 'admin_standards')
+       ORDER BY table_name`
+    );
+    expect(weightColumns.rows).toHaveLength(4);
+    expect(weightColumns.rows.every((column) => column.data_type === 'integer')).toBe(true);
   });
 
   it('is repeatable without changing seeded row counts', async () => {

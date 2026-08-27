@@ -38,7 +38,7 @@ describe('the five form renderers', () => {
     render(<ScorecardView scorecard={detail(formType)} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
     expect(await screen.findByLabelText(control)).toBeInTheDocument();
-    expect(screen.getByText('Total Weight: 100.0%')).toBeInTheDocument();
+    expect(screen.getByText('Total Weight: 100%')).toBeInTheDocument();
   });
 
   it('renders the six fixed Administrative / Support standards without Self Rating', () => {
@@ -46,7 +46,7 @@ describe('the five form renderers', () => {
     expect(screen.getByRole('heading', { name: 'Administrative / Support Non-KPI Form' })).toBeInTheDocument();
     expect(screen.getAllByText(/Standard \d/)).toHaveLength(6);
     expect(screen.queryByLabelText(/Self Rating/)).not.toBeInTheDocument();
-    expect(screen.getByText('Total Weight: 100.0%')).toBeInTheDocument();
+    expect(screen.getByText('Total Weight: 100%')).toBeInTheDocument();
   });
 });
 
@@ -54,10 +54,11 @@ describe('Goal Setting controls and history', () => {
   it('adds and removes employee rows and keeps the running total visible', async () => {
     render(<ScorecardView scorecard={detail('DUGLeadership')} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Add row' }));
-    expect(screen.getByText('Total Weight: 100.0%')).toBeInTheDocument();
+    expect(screen.getByText('Total Weight: 100%')).toBeInTheDocument();
     expect(screen.getByLabelText('Objective / KPI 2')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Weight 2'), { target: { value: '20' } });
-    expect(screen.getByText('Total Weight: 120.0%')).toBeInTheDocument();
+    expect(screen.getByText('Total Weight: 120%')).toBeInTheDocument();
+    expect(screen.getByLabelText('Weight 2')).toHaveAttribute('step', '1');
     fireEvent.click(screen.getByRole('button', { name: 'Remove row 2' }));
     expect(screen.queryByLabelText('Objective / KPI 2')).not.toBeInTheDocument();
   });
@@ -74,7 +75,7 @@ describe('Goal Setting controls and history', () => {
     expect(await screen.findByLabelText('Objective / KPI 1')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Add row' })).not.toBeInTheDocument();
     expect(screen.getByText('A long workflow comment')).toBeInTheDocument();
-    expect(screen.getByText('Employee → Line Manager')).toBeInTheDocument();
+    expect(screen.queryByText('Employee → Line Manager')).not.toBeInTheDocument();
     expect(document.querySelector('time')).toHaveAttribute('datetime', '2027-01-02T10:00:00.000Z');
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       expect.stringContaining('Created'), expect.stringContaining('Initiated')

@@ -24,10 +24,11 @@ describe('scorecard authorization policies', () => {
     expect(canViewScorecard({ ...employee, employeeNumber: 'H2', department: 'Finance', departmentHeadStatus: 'Head' }, scorecard)).toBe(false);
   });
 
-  it('limits mutation to the current assignee and excludes IT and closed scorecards', () => {
+  it('limits mutation to the current assignee, including an IT admin acting on their own assignment', () => {
     expect(canMutateScorecard(employee, scorecard)).toBe(true);
     expect(canMutateScorecard({ ...employee, employeeNumber: 'M1', isManager: true }, scorecard)).toBe(false);
-    expect(canMutateScorecard({ ...employee, isItAdmin: true }, scorecard)).toBe(false);
+    expect(canMutateScorecard({ ...employee, isItAdmin: true }, scorecard)).toBe(true);
+    expect(canMutateScorecard({ ...employee, employeeNumber: 'IT', isItAdmin: true }, scorecard)).toBe(false);
     expect(canMutateScorecard(employee, { ...scorecard, status: 'Closed' })).toBe(false);
   });
 });
