@@ -98,6 +98,21 @@ function actionTime(value: unknown): string | null {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
 }
 
+function readableLabel(value: unknown): string {
+  return String(value)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\bKpi\b/gi, 'KPI')
+    .replace(/\bDug\b/gi, 'DUG')
+    .replace(/\bKbu\b/gi, 'KBU');
+}
+
+function ActionLoader() {
+  return <div className="loading-panel request-loader workflow-request-loader" role="status" aria-live="polite">
+    <div className="workflow-loader" aria-hidden="true">{[1, 2, 3, 4, 5].map((stage) => <span key={stage} />)}</div>
+    <div><p className="eyebrow">PMS 2027</p><p className="loading-title">Updating submission</p><p className="loading-copy">PMS is saving this workflow action and refreshing the scorecard.</p></div>
+  </div>;
+}
+
 export function ScorecardView({ scorecard, userEmployeeNumber, strategyReferences, busy, onAction }: Props) {
   const [lines, setLines] = useState<WorkLine[]>([]);
   const [standards, setStandards] = useState<WorkStandard[]>([]);
@@ -181,7 +196,7 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
   return <section className="scorecard-page" aria-labelledby="scorecard-title">
     <header className="scorecard-heading">
       <div><p className="eyebrow">{scorecard.current_phase.replace(/([a-z])([A-Z])/g, '$1 $2')}</p><h1 id="scorecard-title">{formNames[scorecard.form_type]}</h1>
-        <div className="scorecard-context"><span className="scorecard-record">{scorecard.full_name} · <strong>{scorecard.status}</strong></span>{scorecard.pending_participant && <span>Pending with {scorecard.pending_participant === 'LineManager' ? 'line manager' : 'employee'}</span>}</div>
+        <div className="scorecard-context"><span className="scorecard-record">{scorecard.full_name} · <strong>{readableLabel(scorecard.status)}</strong></span>{scorecard.pending_participant && <span>Pending with {scorecard.pending_participant === 'LineManager' ? 'line manager' : 'employee'}</span>}</div>
       </div>
       <div className="scorecard-metrics">
         {scorecard.overall_rating !== null && <p className="overall-rating"><span>Overall Rating: {Number(scorecard.overall_rating).toFixed(1)}</span><small>Final manager score · 5.0 scale</small></p>}
@@ -212,7 +227,7 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
         </>}
         {scorecard.current_phase === 'YearEnd' && <>
           <label>Actual<input aria-label={`Actual ${index + 1}`} disabled={!employeeYearEnd} value={line.actual} onChange={(event) => change(index, 'actual', event.target.value)} /></label>
-          <label>SelfRating<select aria-label={`SelfRating ${index + 1}`} disabled={!employeeYearEnd} value={line.selfRating ?? ''} onChange={(event) => change(index, 'selfRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
+          <label>Self Rating<select aria-label={`Self Rating ${index + 1}`} disabled={!employeeYearEnd} value={line.selfRating ?? ''} onChange={(event) => change(index, 'selfRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
           <label>Employee Comment<textarea aria-label={`Employee Comment ${index + 1}`} disabled={!employeeYearEnd} value={line.employeeComment} onChange={(event) => change(index, 'employeeComment', event.target.value)} /></label>
           <label>Employee Evidence Reference<input aria-label={`Employee Evidence Reference ${index + 1}`} disabled={!employeeYearEnd} value={line.employeeEvidenceUrl} onChange={(event) => change(index, 'employeeEvidenceUrl', event.target.value)} /></label>
           <label>Manager Rating<select aria-label={`Manager Rating ${index + 1}`} disabled={!managerYearEnd} value={line.managerRating ?? ''} onChange={(event) => change(index, 'managerRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
@@ -237,16 +252,17 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
         {employeePending && <button type="button" disabled={busy} onClick={() => act(currentPhaseState?.requires_resubmission ? 'Resubmitted' : 'Initiated')}>{currentPhaseState?.requires_resubmission ? <RotateCcw size={16} aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}{currentPhaseState?.requires_resubmission ? 'Resubmit' : 'Initiate'}</button>}
         {managerPending && <><button type="button" disabled={busy} onClick={() => act('Approved')}><Check size={16} aria-hidden="true" />Approve</button><button className="reject-button" type="button" disabled={busy} onClick={() => act('Rejected')}><X size={16} aria-hidden="true" />Reject</button></>}
       </div>
+      {busy && <ActionLoader />}
     </div>}
 
     <section aria-labelledby="history-title" className="history"><div className="history-heading"><div><span className="utility-text">AUDIT TRAIL</span><h2 id="history-title">Workflow history</h2></div><Clock3 size={19} aria-hidden="true" /></div>
       {scorecard.history.length === 0 ? <p>No workflow history yet.</p> : <ol>{scorecard.history.map((entry) => {
         const timestamp = actionTime(entry.action_at);
         const movement = entry.from_participant || entry.to_participant
-          ? `${String(entry.from_participant ?? '—')} → ${String(entry.to_participant ?? '—')}`
+          ? `${readableLabel(entry.from_participant ?? '—')} → ${readableLabel(entry.to_participant ?? '—')}`
           : null;
         return <li key={String(entry.id)}><span className="history-node" aria-hidden="true" />
-          <div><strong>{String(entry.action)}</strong><span>{String(entry.phase)} · {String(entry.action_by_employee_number)}</span>
+          <div><strong>{readableLabel(entry.action)}</strong><span>{readableLabel(entry.phase)} · {String(entry.action_by_employee_number)}</span>
           {timestamp ? <time dateTime={String(entry.action_at)}>{timestamp}</time> : null}
           {movement ? <span className="history-movement">{movement}</span> : null}
           {entry.comment ? <p>{String(entry.comment)}</p> : null}

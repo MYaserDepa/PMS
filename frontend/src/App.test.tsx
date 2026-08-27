@@ -13,7 +13,8 @@ describe('App', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
     render(<App />);
     expect(await screen.findByRole('button', { name: 'Test Login' })).toBeInTheDocument();
-    expect(screen.getByText(/controlled development use only/)).toBeInTheDocument();
+    expect(document.querySelector('.login-index')).not.toBeInTheDocument();
+    expect(document.querySelector('.security-note')).not.toBeInTheDocument();
   });
 
   it('logs in and renders server-derived identity', async () => {
@@ -31,7 +32,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Welcome, Hana Admin' })).toBeInTheDocument();
     expect(screen.getByText('HR Admin')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create PMS Submissions' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'RoleCategory Mapping' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Role Category Mapping' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Collapse navigation' }));
     expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeInTheDocument();
     expect(document.querySelector('.app-shell')).toHaveClass('navigation-collapsed');
@@ -76,10 +77,10 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ departments: ['Delivery'] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ employees }) }));
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'RoleCategory Mapping' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Role Category Mapping' }));
     expect(await screen.findByRole('table')).toHaveTextContent('Peter Professional');
     expect(screen.getByLabelText('Department')).toHaveValue('Delivery');
-    expect(screen.getByLabelText('RoleCategory for Noura Head')).toBeDisabled();
-    expect(screen.getByLabelText('RoleCategory for Peter Professional')).toHaveValue('ProjectDeliveryProfessional');
+    expect(screen.getByLabelText('Role category for Noura Head')).toBeDisabled();
+    expect(screen.getByLabelText('Role category for Peter Professional')).toHaveValue('ProjectDeliveryProfessional');
   });
 });

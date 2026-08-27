@@ -66,37 +66,57 @@ test('scenario 1: valid test login, session restoration, logout, and invalid fee
   await expect(page.getByRole('alert')).toContainText('not found or is not eligible');
 });
 
-test('scenario 6: HR and Department Head maintain RoleCategory within scope', async ({ page }) => {
+test('scenario 6: HR and Department Head maintain role categories within scope', async ({ page }) => {
+  await page.route('**/api/role-categories/employees**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  await page.route('**/api/role-categories', async (route) => {
+    if (route.request().method() === 'PUT') await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
   await login(page, '12245');
-  await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
-  await expect(page.getByRole('heading', { name: 'RoleCategory Mapping' })).toBeVisible();
+  await page.getByRole('button', { name: 'Role Category Mapping' }).click();
+  await expect(page.getByRole('heading', { name: 'Role Category Mapping' })).toBeVisible();
   await page.getByLabel('Department').selectOption('Delivery');
-  await page.getByRole('button', { name: 'Load employees' }).click();
-  await page.getByLabel('RoleCategory for Mina Unmapped').selectOption('AdministrativeSupport');
-  await page.getByLabel('RoleCategory for Peter Professional').selectOption('AdministrativeSupport');
-  await page.getByLabel('RoleCategory for Sara Support').selectOption('AdministrativeSupport');
+  await expect(page.getByRole('status')).toContainText('Loading department employees');
+  await expect(page.getByRole('table')).toContainText('Peter Professional');
+  await page.getByLabel('Role category for Mina Unmapped').selectOption('AdministrativeSupport');
+  await page.getByLabel('Role category for Peter Professional').selectOption('AdministrativeSupport');
+  await page.getByLabel('Role category for Sara Support').selectOption('AdministrativeSupport');
   await page.getByRole('button', { name: 'Save mappings' }).click();
-  await expect(page.getByRole('status')).toContainText('3 RoleCategory mappings saved');
+  await expect(page.getByRole('status')).toContainText('Saving role category mappings');
+  await expect(page.getByRole('status')).toContainText('3 role category mappings saved');
+  await expect(page.getByRole('status')).toHaveClass(/toast/);
   await page.getByRole('button', { name: 'Logout' }).click();
 
   await page.getByLabel('Employee Number').fill('17001');
   await page.getByRole('button', { name: 'Test Login' }).click();
-  await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
+  await page.getByRole('button', { name: 'Role Category Mapping' }).click();
   await expect(page.getByLabel('Department')).toHaveValue('Delivery');
   await expect(page.getByLabel('Department').locator('option')).toHaveCount(1);
   await expect(page.getByRole('table')).toContainText('Peter Professional');
   await expect(page.getByRole('table')).not.toContainText('Hana Admin');
-  await page.getByLabel('RoleCategory for Peter Professional').selectOption('ProjectDeliveryProfessional');
+  await page.getByLabel('Role category for Peter Professional').selectOption('ProjectDeliveryProfessional');
   await page.getByRole('button', { name: 'Save mappings' }).click();
-  await expect(page.getByRole('status')).toContainText('1 RoleCategory mapping saved');
+  await expect(page.getByRole('status')).toContainText('1 role category mapping saved');
 });
 
 test('scenarios 2 through 6: HR previews all assignment branches and generates selected scorecards', async ({ page }) => {
+  await page.route('**/api/hr/populate', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  await page.route('**/api/hr/generate', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
   await login(page, '12245');
   await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
   await expect(page.getByRole('heading', { name: 'Create PMS Submissions' })).toBeVisible();
   await page.getByLabel('Department').selectOption('Delivery');
   await page.getByRole('button', { name: 'Populate' }).click();
+  await expect(page.getByRole('status')).toContainText('Populating department employees');
   const table = page.getByRole('table');
   await expect(table).toContainText('DUG Leadership Scorecard');
   await expect(table).toContainText('KBU Leadership Scorecard');
@@ -108,7 +128,8 @@ test('scenarios 2 through 6: HR previews all assignment branches and generates s
   await expect(table).toContainText('Unable to Resolve DUG/KBU');
   await expect(table.getByRole('row').filter({ hasText: 'Dalia Leader' })).toContainText('Noura Head');
   await page.getByRole('button', { name: 'Generate selected' }).click();
-  await expect(page.getByRole('status')).toContainText('6 Created');
+  await expect(page.getByRole('status')).toContainText('Creating PMS submissions');
+  await expect(page.getByRole('status')).toContainText('6 created');
   await expect(table).toContainText('PMS Already Exists');
 });
 
@@ -133,7 +154,7 @@ test('role-specific submission lists and phase control expose only authorized sc
   await page.getByRole('button', { name: 'All 2027 Submissions' }).click();
   await expect(page.getByRole('table')).toContainText('Administrative / Support Non-KPI Form');
   await page.getByRole('button', { name: 'Phase Control' }).click();
-  await expect(page.getByText('GoalSetting', { exact: true })).toBeVisible();
+  await expect(page.locator('.phase-card').getByText('Goals', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Open next phase' }).click();
   await expect(page.getByRole('alert')).toContainText('Every scorecard must fully approve');
 
@@ -171,7 +192,7 @@ test('scenarios 7 through 9: Goal Setting draft, weight validation, rejection, r
   await page.getByLabel('Target 1').fill('100% completed');
   await page.getByLabel('Weight 1').fill('90');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
-  await expect(page.getByText('SavedDraft')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Workflow history' })).toContainText('Saved Draft');
   await page.reload();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await expect(page.getByLabel('Objective / KPI 1')).toHaveValue('Deliver the 2027 strategic outcome');
@@ -206,10 +227,10 @@ test('scenarios 7 through 9: Goal Setting draft, weight validation, rejection, r
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await page.getByLabel('Workflow comment').fill('Approved');
   await page.getByRole('button', { name: 'Approve' }).click();
-  await expect(page.getByText(/FullyApproved/)).toBeVisible();
+  await expect(page.getByText(/Fully Approved/)).toBeVisible();
   await expect(page.getByLabel('Objective / KPI 1')).toBeDisabled();
   const history = page.getByRole('region', { name: 'Workflow history' });
-  await expect(history).toContainText('SavedDraft');
+  await expect(history).toContainText('Saved Draft');
   await expect(history).toContainText('Initiated');
   await expect(history).toContainText('Rejected');
   await expect(history).toContainText('Resubmitted');
@@ -238,7 +259,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.goto('/');
   await page.getByRole('button', { name: 'Phase Control' }).click();
   await page.getByRole('button', { name: 'Open next phase' }).click();
-  await expect(page.getByRole('status')).toContainText('MidYear opened');
+  await expect(page.getByRole('status')).toContainText('Mid-year opened');
   await page.getByRole('button', { name: 'Logout' }).click();
 
   await page.getByLabel('Employee Number').fill('18001');
@@ -271,7 +292,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await page.getByLabel('Manager Mid-Year Comment 1', { exact: true }).fill('Recovery plan accepted');
   await page.getByRole('button', { name: 'Approve' }).click();
-  await expect(page.getByText(/FullyApproved/)).toBeVisible();
+  await expect(page.getByText(/Fully Approved/)).toBeVisible();
 
   for (const [employeeNumber] of goalSetup) {
     const scorecard = await ownScorecard(page, employeeNumber);
@@ -295,28 +316,28 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.goto('/');
   await page.getByRole('button', { name: 'Phase Control' }).click();
   await page.getByRole('button', { name: 'Open next phase' }).click();
-  await expect(page.getByRole('status')).toContainText('YearEnd opened');
+  await expect(page.getByRole('status')).toContainText('Year-end opened');
   await page.getByRole('button', { name: 'Logout' }).click();
 
   await page.getByLabel('Employee Number').fill('18001');
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
   await page.getByLabel('Actual 1').fill('Delivered');
-  await page.getByLabel('SelfRating 1').selectOption('4');
+  await page.getByLabel('Self Rating 1').selectOption('4');
   await page.getByLabel('Employee Comment 1').fill('Exceeded the revised outcome');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
-  await expect(page.getByRole('region', { name: 'Workflow history' })).toContainText('SavedDraft');
+  await expect(page.getByRole('region', { name: 'Workflow history' })).toContainText('Saved Draft');
   await page.getByRole('button', { name: 'Logout' }).click();
   await page.getByLabel('Employee Number').fill('30001');
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'My Team' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
-  await expect(page.getByLabel('SelfRating 1')).toHaveValue('');
+  await expect(page.getByLabel('Self Rating 1')).toHaveValue('');
   await page.getByRole('button', { name: 'Logout' }).click();
   await page.getByLabel('Employee Number').fill('18001');
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
-  await expect(page.getByLabel('SelfRating 1')).toHaveValue('4');
+  await expect(page.getByLabel('Self Rating 1')).toHaveValue('4');
   await page.getByRole('button', { name: 'Initiate' }).click();
   await expect(page.getByRole('alert')).toContainText('Employee evidence is required');
   await page.getByLabel('Employee Evidence Reference 1').fill('EMP-EVIDENCE-2027');
@@ -328,7 +349,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await page.getByRole('button', { name: 'Test Login' }).click();
   await page.getByRole('button', { name: 'My Team' }).click();
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
-  await expect(page.getByLabel('SelfRating 1')).toHaveValue('4');
+  await expect(page.getByLabel('Self Rating 1')).toHaveValue('4');
   await page.getByLabel('Manager Rating 1').selectOption('4');
   await page.getByLabel('Manager Comment 1').fill('Exceeded the outcome');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
@@ -352,7 +373,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await ownScorecard(page, '17003');
   await page.goto('/');
   await page.getByRole('button', { name: 'Open Sara Support' }).click();
-  await expect(page.getByLabel(/SelfRating/)).toHaveCount(0);
+  await expect(page.getByLabel(/Self Rating/)).toHaveCount(0);
   for (let index = 1; index <= 6; index += 1) await page.getByLabel(`Employee Comment ${index}`).fill(`Employee comment ${index}`);
   await page.getByRole('button', { name: 'Initiate' }).click();
   await page.getByRole('button', { name: 'Logout' }).click();

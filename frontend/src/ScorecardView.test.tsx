@@ -41,11 +41,11 @@ describe('the five form renderers', () => {
     expect(screen.getByText('Total Weight: 100.0%')).toBeInTheDocument();
   });
 
-  it('renders the six fixed Administrative / Support standards without SelfRating', () => {
+  it('renders the six fixed Administrative / Support standards without Self Rating', () => {
     render(<ScorecardView scorecard={detail('AdministrativeSupport')} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Administrative / Support Non-KPI Form' })).toBeInTheDocument();
     expect(screen.getAllByText(/Standard \d/)).toHaveLength(6);
-    expect(screen.queryByLabelText(/SelfRating/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Self Rating/)).not.toBeInTheDocument();
     expect(screen.getByText('Total Weight: 100.0%')).toBeInTheDocument();
   });
 });
@@ -74,7 +74,7 @@ describe('Goal Setting controls and history', () => {
     expect(await screen.findByLabelText('Objective / KPI 1')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Add row' })).not.toBeInTheDocument();
     expect(screen.getByText('A long workflow comment')).toBeInTheDocument();
-    expect(screen.getByText('Employee → LineManager')).toBeInTheDocument();
+    expect(screen.getByText('Employee → Line Manager')).toBeInTheDocument();
     expect(document.querySelector('time')).toHaveAttribute('datetime', '2027-01-02T10:00:00.000Z');
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       expect.stringContaining('Created'), expect.stringContaining('Initiated')
@@ -97,14 +97,14 @@ describe('phase-specific ownership', () => {
 
   it('separates employee and manager Year-End controls', async () => {
     const employeeView = render(<ScorecardView scorecard={detail('DUGLeadership', { current_phase: 'YearEnd' })} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
-    expect(await screen.findByLabelText('SelfRating 1')).toBeEnabled();
+    expect(await screen.findByLabelText('Self Rating 1')).toBeEnabled();
     expect(screen.getByLabelText('Manager Rating 1')).toBeDisabled();
     employeeView.unmount();
 
     render(<ScorecardView scorecard={detail('DUGLeadership', {
       current_phase: 'YearEnd', pending_participant: 'LineManager', current_workflow_assignee_employee_number: '30001'
     })} userEmployeeNumber="30001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
-    expect(await screen.findByLabelText('SelfRating 1')).toBeDisabled();
+    expect(await screen.findByLabelText('Self Rating 1')).toBeDisabled();
     expect(screen.getByLabelText('Manager Rating 1')).toBeEnabled();
   });
 

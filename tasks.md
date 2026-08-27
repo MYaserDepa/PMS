@@ -762,6 +762,32 @@ Goal: remove repetitive RoleCategory entry and correct the live assignment previ
 - [x] Browser tests validate HR bulk mapping, single-department head auto-load, assignment preview names, and form generation.
 - [x] Browser screenshots confirm the revised mapping worklist is usable at desktop and mobile sizes.
 
+## Milestone 14: localized feedback and UI copy
+
+Goal: keep request feedback beside the active workflow, use short-lived toasts for outcomes, and remove implementation names from user-facing copy.
+
+### M14-T1: Simplify the login and home presentation
+
+- [x] Remove the test-access index, development security note, and redundant home-page description.
+- [x] Keep the dark branded login context and apply the shared 32-pixel grid pattern only to the signed-in home page.
+- [x] Remove the desktop navigation width and workspace padding transition.
+
+### M14-T2: Localize request loading states
+
+- [x] Place the workflow loader beneath the login controls instead of taking over the viewport.
+- [x] Show section-level loading for department retrieval, submission lists, Populate, Generate, role category worklists and saves, phase changes, and scorecard actions.
+- [x] Auto-load the role category worklist when the department selection changes.
+
+### M14-T3: Standardize feedback and plain-language labels
+
+- [x] Show success, information, and error outcomes as short-lived bottom-right toasts without shifting tables or forms.
+- [x] Display spaced role category, phase, status, workflow action, and participant labels while preserving API values internally.
+
+### Milestone 14 gate
+
+- [x] Frontend unit, build, lint, and type checks pass.
+- [x] Browser workflows validate localized loaders, auto-loaded departments, toasts, and the revised desktop and mobile presentation.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

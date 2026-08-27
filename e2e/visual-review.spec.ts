@@ -34,20 +34,31 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
     await route.continue();
   });
   const navigation = page.goto('/');
-  await expect(page.getByRole('status')).toContainText('Preparing your workspace');
+  await expect(page.getByRole('status')).toContainText('Checking for an existing session');
+  await expect(page.locator('.login-form .request-loader')).toBeVisible();
   await page.screenshot({ path: 'test-results/visual-review/desktop-loading.png', fullPage: true });
   await navigation;
 
   await expect(page.getByRole('heading', { name: 'PMS 2027' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.locator('.login-context')).toHaveCSS('background-size', 'auto');
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/desktop-login.png', fullPage: true });
 
+  await page.route('**/api/auth/login', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await route.continue();
+  });
   await page.getByLabel('Employee Number').fill('12245');
   await page.getByRole('button', { name: 'Test Login' }).click();
+  await expect(page.getByRole('status')).toContainText('Checking employee access');
+  await expect(page.locator('.input-with-action + .request-loader')).toBeVisible();
+  await page.screenshot({ path: 'test-results/visual-review/desktop-login-loading.png', fullPage: true });
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await page.setViewportSize({ width: 1366, height: 768 });
   await expectNoPageOverflow(page);
   await expectPageFitsViewport(page);
+  await expect(page.locator('.content-home')).toHaveCSS('background-size', '32px 32px, 32px 32px');
   await page.screenshot({ path: 'test-results/visual-review/desktop-home.png', fullPage: true });
 
   await page.setViewportSize({ width: 1366, height: 500 });
@@ -64,6 +75,8 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   expect(await navigationToggle.evaluate((element) => getComputedStyle(element).transform)).toBe(restingTransform);
   await navigationToggle.click();
   await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();
+  await expect(page.locator('.navigation-shell')).toHaveCSS('transition-duration', '0s');
+  await expect(page.locator('.workspace')).toHaveCSS('transition-duration', '0s');
   await expectNoPageOverflow(page);
   await expectPageFitsViewport(page);
   await page.screenshot({ path: 'test-results/visual-review/desktop-home-collapsed.png', fullPage: true });
@@ -72,17 +85,28 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await page.getByRole('button', { name: 'Expand navigation' }).click();
 
-  await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
+  await page.getByRole('button', { name: 'Role Category Mapping' }).click();
+  await page.route('**/api/role-categories/employees**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await route.continue();
+  });
   await page.getByLabel('Department').selectOption('Delivery');
-  await page.getByRole('button', { name: 'Load employees' }).click();
+  await expect(page.getByRole('status')).toContainText('Loading department employees');
+  await page.screenshot({ path: 'test-results/visual-review/desktop-role-mapping-loading.png' });
   await expect(page.getByRole('table')).toContainText('Peter Professional');
   await expect(page.locator('.navigation-shell')).toHaveCSS('width', '272px');
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/desktop-role-mapping.png' });
 
   await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
+  await page.route('**/api/hr/populate', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await route.continue();
+  });
   await page.getByLabel('Department').selectOption('Delivery');
   await page.getByRole('button', { name: 'Populate' }).click();
+  await expect(page.getByRole('status')).toContainText('Populating department employees');
+  await page.screenshot({ path: 'test-results/visual-review/desktop-generation-loading.png', fullPage: true });
   await expect(page.getByRole('table')).toContainText('Dalia Leader');
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/desktop-generation.png', fullPage: true });
@@ -90,6 +114,7 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await page.getByRole('button', { name: 'Logout' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('heading', { name: 'PMS 2027' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/mobile-login.png', fullPage: true });
 
@@ -99,9 +124,8 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/mobile-home.png', fullPage: true });
 
-  await page.getByRole('button', { name: 'RoleCategory Mapping' }).click();
+  await page.getByRole('button', { name: 'Role Category Mapping' }).click();
   await page.getByLabel('Department').selectOption('Delivery');
-  await page.getByRole('button', { name: 'Load employees' }).click();
   await expect(page.getByRole('table')).toContainText('Peter Professional');
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/mobile-role-mapping.png', fullPage: true });
