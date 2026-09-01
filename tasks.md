@@ -826,6 +826,7 @@ Goal: let configured admin identities complete their own assigned PMS workflow a
 - [x] Require the current participant's applicable fields and an exact 100% total for Save as Draft, Initiate, Resubmit, and Approve actions.
 - [x] Store and accept KPI weights as whole numbers from 1 to 100 and use a UI step of 1.
 - [x] Apply the integer weight schema change through a migration and validate the affected API and browser workflows.
+- [x] Document the mandatory assignment, row, field, phase, rating, evidence, and weight rules for all five forms in `rules.md`.
 
 ### Milestone 17 gate
 
