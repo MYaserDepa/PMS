@@ -51,6 +51,13 @@ async function apiAction(page: import('@playwright/test').Page, id: string, acti
   expect(response.ok(), `${action} failed: ${await response.text()}`).toBe(true);
 }
 
+async function confirmPhaseAdvance(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Open next phase' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Are you sure? This action cannot be undone.');
+  await dialog.locator('button').last().click();
+}
+
 test('scenario 1: valid test login, session restoration, logout, and invalid feedback', async ({ page }) => {
   await page.route('**/api/scorecards', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 350));
@@ -74,6 +81,9 @@ test('scenario 1: valid test login, session restoration, logout, and invalid fee
   await expect(page.locator('.user-context')).not.toContainText('HR Admin');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
+  await page.getByRole('button', { name: 'Phase Control' }).click();
+  await expect(page.getByRole('button', { name: 'Open next phase' })).toBeDisabled();
+  await expect(page.getByText(/No submissions have been created/)).toBeVisible();
   await page.getByRole('button', { name: 'Logout' }).click();
   await expect(page.getByRole('button', { name: 'Test Login' })).toBeVisible();
   await page.getByLabel('Employee Number').fill('unknown');
@@ -171,7 +181,7 @@ test('role-specific submission lists and phase control expose only authorized sc
   await expect(page.getByRole('table')).toContainText('Administrative / Support Non-KPI Form');
   await page.getByRole('button', { name: 'Phase Control' }).click();
   await expect(page.locator('.phase-card').getByText('Goals', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Open next phase' }).click();
+  await confirmPhaseAdvance(page);
   await expect(page.getByRole('alert')).toContainText('Every scorecard must fully approve');
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -194,6 +204,13 @@ test('all five generated form types render from the server-provided form assignm
     await openButton.click();
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
     await expect(page.getByText('Total Weight:', { exact: false })).toBeVisible();
+    if (employeeNumber === '18001' || employeeNumber === '18002') {
+      await expect(page.getByLabel('Objective / KPI 1')).toBeVisible();
+      await expect(page.getByLabel('Objective / KPI 2')).toHaveCount(0);
+    }
+    if (employeeNumber === '17001' || employeeNumber === '17002') {
+      await expect(page.getByLabel(/Objective \/ KPI/)).toHaveCount(4);
+    }
     await page.getByRole('button', { name: 'Logout' }).click();
   }
 });
@@ -219,8 +236,12 @@ test('scenarios 7 through 9: Goal Setting draft, weight validation, rejection, r
   test.setTimeout(90_000);
   await login(page, '18001');
   await page.getByRole('button', { name: 'Open Dalia Leader' }).click();
+  await expect(page.getByLabel('Objective / KPI 1')).toBeVisible();
   await page.getByRole('button', { name: 'Add row' }).click();
+  await expect(page.getByLabel('Objective / KPI 2')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Remove' }).first()).toHaveText('Remove');
+  await page.getByRole('button', { name: 'Remove' }).last().click();
+  await expect(page.getByLabel('Objective / KPI 2')).toHaveCount(0);
   await expect(page.getByLabel('Weight 1')).toHaveAttribute('step', '1');
   await page.getByRole('button', { name: 'Save as Draft' }).click();
   await expect(page.getByRole('alert')).toContainText('requires wording, a measure, and a target');
@@ -302,7 +323,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await apiLogin(page, '12245');
   await page.goto('/');
   await page.getByRole('button', { name: 'Phase Control' }).click();
-  await page.getByRole('button', { name: 'Open next phase' }).click();
+  await confirmPhaseAdvance(page);
   await expect(page.getByRole('status')).toContainText('Mid-year opened');
   await page.getByRole('button', { name: 'Logout' }).click();
 
@@ -362,7 +383,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await apiLogin(page, '12245');
   await page.goto('/');
   await page.getByRole('button', { name: 'Phase Control' }).click();
-  await page.getByRole('button', { name: 'Open next phase' }).click();
+  await confirmPhaseAdvance(page);
   await expect(page.getByRole('status')).toContainText('Year-end opened');
   await page.getByRole('button', { name: 'Logout' }).click();
 
@@ -457,7 +478,7 @@ test('scenarios 10 through 14: Mid-Year, Year-End evidence and privacy, Administ
   await apiLogin(page, '12245');
   await page.goto('/');
   await page.getByRole('button', { name: 'Phase Control' }).click();
-  await page.getByRole('button', { name: 'Open next phase' }).click();
+  await confirmPhaseAdvance(page);
   await expect(page.getByRole('status')).toContainText('Development opened');
 
   for (const employeeNumber of ['18002', '17001', '17002', '17003', '17004', '21975']) {

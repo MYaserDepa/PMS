@@ -79,6 +79,16 @@ const emptyLine = (): WorkLine => ({
   managerComment: '', employeeEvidenceUrl: '', managerEvidenceUrl: ''
 });
 
+function initialLineCount(formType: string): number {
+  if (formType === 'DUGLeadership' || formType === 'KBULeadership') return 1;
+  if (formType === 'DepartmentHeadKPI' || formType === 'ProjectDeliveryProfessionalKPI') return 4;
+  return 0;
+}
+
+function RequiredMark({ show }: { show: boolean }) {
+  return show ? <span className="required-mark" aria-hidden="true">*</span> : null;
+}
+
 function fromServer(line: Record<string, unknown>): WorkLine {
   return {
     ...emptyLine(), id: String(line.id), perspective: String(line.perspective ?? ''),
@@ -121,7 +131,9 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
   const [employeeDevelopmentNotes, setEmployeeDevelopmentNotes] = useState('');
   const [managerDevelopmentNotes, setManagerDevelopmentNotes] = useState('');
   useEffect(() => {
-    setLines(scorecard.lines.map(fromServer));
+    const serverLines = scorecard.lines.map(fromServer);
+    const firstOpenCount = scorecard.current_phase === 'GoalSetting' ? initialLineCount(scorecard.form_type) : 0;
+    setLines(serverLines.length > 0 ? serverLines : Array.from({ length: firstOpenCount }, emptyLine));
     setStandards(scorecard.standards.map((standard) => ({
       id: String(standard.id), standardName: String(standard.standard_name), expectedStandard: String(standard.expected_standard),
       weight: Number(standard.weight), employeeComment: String(standard.employee_comment ?? ''),
@@ -208,32 +220,38 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
     {scorecard.form_type === 'AdministrativeSupport' ? <div className="table-scroll"><table className="data-table scorecard-table">
       <thead><tr><th>Performance Standard</th><th>Expected Standard</th><th>Weight</th>{scorecard.current_phase === 'YearEnd' && <><th>Employee review</th><th>Manager review</th></>}</tr></thead>
       <tbody>{standards.map((standard, index) => <tr key={standard.id}><td>{standard.standardName}</td><td>{standard.expectedStandard}</td><td>{standard.weight}%</td>
-        {scorecard.current_phase === 'YearEnd' && <><td><label>Employee Comment<textarea aria-label={`Employee Comment ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={standard.employeeComment} onChange={(event) => changeStandard(index, 'employeeComment', event.target.value)} /></label><label>Employee Evidence Reference<input aria-label={`Employee Evidence Reference ${index + 1}`} disabled={!employeeYearEnd} value={standard.employeeEvidenceUrl} onChange={(event) => changeStandard(index, 'employeeEvidenceUrl', event.target.value)} /></label></td>
-          <td><label>Manager Rating<select aria-label={`Manager Rating ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={standard.managerRating ?? ''} onChange={(event) => changeStandard(index, 'managerRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label><label>Manager Comment<textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={standard.managerComment} onChange={(event) => changeStandard(index, 'managerComment', event.target.value)} /></label><label>Manager Evidence Reference<input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd && (standard.managerRating ?? 0) >= 4} value={standard.managerEvidenceUrl} onChange={(event) => changeStandard(index, 'managerEvidenceUrl', event.target.value)} /></label></td></>}
+        {scorecard.current_phase === 'YearEnd' && <><td>
+          <label>Employee Comment<RequiredMark show={employeeYearEnd} /><textarea aria-label={`Employee Comment ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={standard.employeeComment} onChange={(event) => changeStandard(index, 'employeeComment', event.target.value)} /></label>
+          <label>Employee Evidence Reference<input aria-label={`Employee Evidence Reference ${index + 1}`} disabled={!employeeYearEnd} value={standard.employeeEvidenceUrl} onChange={(event) => changeStandard(index, 'employeeEvidenceUrl', event.target.value)} /></label>
+        </td><td>
+          <label>Manager Rating<RequiredMark show={managerYearEnd} /><select aria-label={`Manager Rating ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={standard.managerRating ?? ''} onChange={(event) => changeStandard(index, 'managerRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
+          <label>Manager Comment<RequiredMark show={managerYearEnd} /><textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={standard.managerComment} onChange={(event) => changeStandard(index, 'managerComment', event.target.value)} /></label>
+          <label>Manager Evidence Reference<RequiredMark show={managerYearEnd && (standard.managerRating ?? 0) >= 4} /><input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd && (standard.managerRating ?? 0) >= 4} value={standard.managerEvidenceUrl} onChange={(event) => changeStandard(index, 'managerEvidenceUrl', event.target.value)} /></label>
+        </td></>}
       </tr>)}</tbody>
     </table></div> : <div className="form-lines">
       {lines.map((line, index) => <fieldset className="scorecard-fieldset" key={`${line.id ?? 'new'}-${index}`}>
         <legend><span className="utility-text">{String(index + 1).padStart(2, '0')}</span>{scorecard.form_type.includes('Leadership') ? 'Objective' : 'KPI'} {index + 1}</legend>
-        {(scorecard.form_type === 'DUGLeadership' || scorecard.form_type === 'KBULeadership') && <label>Perspective<select aria-label={`Perspective ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.perspective} onChange={(event) => change(index, 'perspective', event.target.value)}><option value="">Select</option>{options[scorecard.form_type].map((item) => <option key={item}>{item}</option>)}</select></label>}
-        {scorecard.form_type === 'ProjectDeliveryProfessionalKPI' && <label>Performance Area<select aria-label={`Performance Area ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.performanceArea} onChange={(event) => change(index, 'performanceArea', event.target.value)}><option value="">Select</option>{options.ProjectDeliveryProfessionalKPI.map((item) => <option key={item}>{item}</option>)}</select></label>}
-        <label>Objective / KPI<input aria-label={`Objective / KPI ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.title} onChange={(event) => change(index, 'title', event.target.value)} /></label>
-        <label>Linked Strategy Reference<select aria-label={`Linked Strategy Reference ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.linkedStrategyReferenceId} onChange={(event) => change(index, 'linkedStrategyReferenceId', event.target.value)}><option value="">Select</option>{strategyReferences.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label>Measure<input aria-label={`Measure ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.measureDescription} onChange={(event) => change(index, 'measureDescription', event.target.value)} /></label>
-        <label>Target<input aria-label={`Target ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.target} onChange={(event) => change(index, 'target', event.target.value)} /></label>
-        <label>Weight<input aria-label={`Weight ${index + 1}`} disabled={!editablePlan} required={editablePlan} type="number" min="1" max="100" step="1" value={line.weight ?? ''} onChange={(event) => change(index, 'weight', event.target.value === '' ? null : Number(event.target.value))} /></label>
+        {(scorecard.form_type === 'DUGLeadership' || scorecard.form_type === 'KBULeadership') && <label>Perspective<RequiredMark show={editablePlan} /><select aria-label={`Perspective ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.perspective} onChange={(event) => change(index, 'perspective', event.target.value)}><option value="">Select</option>{options[scorecard.form_type].map((item) => <option key={item}>{item}</option>)}</select></label>}
+        {scorecard.form_type === 'ProjectDeliveryProfessionalKPI' && <label>Performance Area<RequiredMark show={editablePlan} /><select aria-label={`Performance Area ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.performanceArea} onChange={(event) => change(index, 'performanceArea', event.target.value)}><option value="">Select</option>{options.ProjectDeliveryProfessionalKPI.map((item) => <option key={item}>{item}</option>)}</select></label>}
+        <label>Objective / KPI<RequiredMark show={editablePlan} /><input aria-label={`Objective / KPI ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.title} onChange={(event) => change(index, 'title', event.target.value)} /></label>
+        <label>Linked Strategy Reference<RequiredMark show={editablePlan} /><select aria-label={`Linked Strategy Reference ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.linkedStrategyReferenceId} onChange={(event) => change(index, 'linkedStrategyReferenceId', event.target.value)}><option value="">Select</option>{strategyReferences.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+        <label>Measure<RequiredMark show={editablePlan} /><input aria-label={`Measure ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.measureDescription} onChange={(event) => change(index, 'measureDescription', event.target.value)} /></label>
+        <label>Target<RequiredMark show={editablePlan} /><input aria-label={`Target ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.target} onChange={(event) => change(index, 'target', event.target.value)} /></label>
+        <label>Weight<RequiredMark show={editablePlan} /><input aria-label={`Weight ${index + 1}`} disabled={!editablePlan} required={editablePlan} type="number" min="1" max="100" step="1" value={line.weight ?? ''} onChange={(event) => change(index, 'weight', event.target.value === '' ? null : Number(event.target.value))} /></label>
         {scorecard.current_phase === 'MidYear' && <>
-          <label>Mid-Year Status<select aria-label={`Mid-Year Status ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.midYearStatus} onChange={(event) => change(index, 'midYearStatus', event.target.value)}><option value="">Select</option><option value="OnTrack">On Track</option><option value="AtRisk">At Risk</option><option value="Blocked">Blocked</option></select></label>
-          <label>Mid-Year Comment<textarea aria-label={`Mid-Year Comment ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.midYearComment} onChange={(event) => change(index, 'midYearComment', event.target.value)} /></label>
-          <label>Manager Mid-Year Comment<textarea aria-label={`Manager Mid-Year Comment ${index + 1}`} disabled={!managerPending} required={managerPending} value={line.managerComment} onChange={(event) => change(index, 'managerComment', event.target.value)} /></label>
+          <label>Mid-Year Status<RequiredMark show={editablePlan} /><select aria-label={`Mid-Year Status ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.midYearStatus} onChange={(event) => change(index, 'midYearStatus', event.target.value)}><option value="">Select</option><option value="OnTrack">On Track</option><option value="AtRisk">At Risk</option><option value="Blocked">Blocked</option></select></label>
+          <label>Mid-Year Comment<RequiredMark show={editablePlan} /><textarea aria-label={`Mid-Year Comment ${index + 1}`} disabled={!editablePlan} required={editablePlan} value={line.midYearComment} onChange={(event) => change(index, 'midYearComment', event.target.value)} /></label>
+          <label>Manager Mid-Year Comment<RequiredMark show={managerPending} /><textarea aria-label={`Manager Mid-Year Comment ${index + 1}`} disabled={!managerPending} required={managerPending} value={line.managerComment} onChange={(event) => change(index, 'managerComment', event.target.value)} /></label>
         </>}
         {scorecard.current_phase === 'YearEnd' && <>
-          <label>Actual<input aria-label={`Actual ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={line.actual} onChange={(event) => change(index, 'actual', event.target.value)} /></label>
-          <label>Self Rating<select aria-label={`Self Rating ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={line.selfRating ?? ''} onChange={(event) => change(index, 'selfRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
-          <label>Employee Comment<textarea aria-label={`Employee Comment ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={line.employeeComment} onChange={(event) => change(index, 'employeeComment', event.target.value)} /></label>
-          <label>Employee Evidence Reference<input aria-label={`Employee Evidence Reference ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd && (line.selfRating ?? 0) >= 4} value={line.employeeEvidenceUrl} onChange={(event) => change(index, 'employeeEvidenceUrl', event.target.value)} /></label>
-          <label>Manager Rating<select aria-label={`Manager Rating ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={line.managerRating ?? ''} onChange={(event) => change(index, 'managerRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
-          <label>Manager Comment<textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={line.managerComment} onChange={(event) => change(index, 'managerComment', event.target.value)} /></label>
-          <label>Manager Evidence Reference<input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd && (line.managerRating ?? 0) >= 4} value={line.managerEvidenceUrl} onChange={(event) => change(index, 'managerEvidenceUrl', event.target.value)} /></label>
+          <label>Actual<RequiredMark show={employeeYearEnd} /><input aria-label={`Actual ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={line.actual} onChange={(event) => change(index, 'actual', event.target.value)} /></label>
+          <label>Self Rating<RequiredMark show={employeeYearEnd} /><select aria-label={`Self Rating ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={line.selfRating ?? ''} onChange={(event) => change(index, 'selfRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
+          <label>Employee Comment<RequiredMark show={employeeYearEnd} /><textarea aria-label={`Employee Comment ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd} value={line.employeeComment} onChange={(event) => change(index, 'employeeComment', event.target.value)} /></label>
+          <label>Employee Evidence Reference<RequiredMark show={employeeYearEnd && (line.selfRating ?? 0) >= 4} /><input aria-label={`Employee Evidence Reference ${index + 1}`} disabled={!employeeYearEnd} required={employeeYearEnd && (line.selfRating ?? 0) >= 4} value={line.employeeEvidenceUrl} onChange={(event) => change(index, 'employeeEvidenceUrl', event.target.value)} /></label>
+          <label>Manager Rating<RequiredMark show={managerYearEnd} /><select aria-label={`Manager Rating ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={line.managerRating ?? ''} onChange={(event) => change(index, 'managerRating', event.target.value ? Number(event.target.value) : null)}><option value="">Select</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating}>{rating}</option>)}</select></label>
+          <label>Manager Comment<RequiredMark show={managerYearEnd} /><textarea aria-label={`Manager Comment ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd} value={line.managerComment} onChange={(event) => change(index, 'managerComment', event.target.value)} /></label>
+          <label>Manager Evidence Reference<RequiredMark show={managerYearEnd && (line.managerRating ?? 0) >= 4} /><input aria-label={`Manager Evidence Reference ${index + 1}`} disabled={!managerYearEnd} required={managerYearEnd && (line.managerRating ?? 0) >= 4} value={line.managerEvidenceUrl} onChange={(event) => change(index, 'managerEvidenceUrl', event.target.value)} /></label>
         </>}
         {editablePlan && <button className="remove-button" type="button" onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={15} aria-hidden="true" />Remove</button>}
       </fieldset>)}
@@ -241,8 +259,8 @@ export function ScorecardView({ scorecard, userEmployeeNumber, strategyReference
     </div>}
 
     {(scorecard.current_phase === 'Development' || scorecard.current_phase === 'Closed') && <div className="development-fields">
-      <label>Employee Development Notes<textarea disabled={!employeePending} required={employeePending} value={employeeDevelopmentNotes} onChange={(event) => setEmployeeDevelopmentNotes(event.target.value)} /></label>
-      <label>Manager Development Notes<textarea disabled={!managerPending} required={managerPending} value={managerDevelopmentNotes} onChange={(event) => setManagerDevelopmentNotes(event.target.value)} /></label>
+      <label>Employee Development Notes<RequiredMark show={employeePending} /><textarea aria-label="Employee Development Notes" disabled={!employeePending} required={employeePending} value={employeeDevelopmentNotes} onChange={(event) => setEmployeeDevelopmentNotes(event.target.value)} /></label>
+      <label>Manager Development Notes<RequiredMark show={managerPending} /><textarea aria-label="Manager Development Notes" disabled={!managerPending} required={managerPending} value={managerDevelopmentNotes} onChange={(event) => setManagerDevelopmentNotes(event.target.value)} /></label>
     </div>}
 
     {(employeePending || managerPending) && <div className="workflow-actions">

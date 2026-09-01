@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, Building2, FilePlus2, House, ListChecks, LogOut, Milestone,
-  PanelLeftClose, PanelLeftOpen, UserCog, UsersRound, type LucideIcon
+  PanelLeftClose, PanelLeftOpen, TriangleAlert, UserCog, UsersRound, type LucideIcon
 } from 'lucide-react';
 import { ScorecardView, type ScorecardDetail } from './ScorecardView.js';
 
@@ -116,6 +116,49 @@ function Toast({ toast }: { toast: ToastMessage }) {
   >{toast.message}</p>;
 }
 
+function nextPhaseLabel(currentPhase: string): string {
+  const currentIndex = phaseOrder.indexOf(currentPhase as (typeof phaseOrder)[number]);
+  const target = currentIndex >= 0 ? phaseOrder[currentIndex + 1] : undefined;
+  return target ? phaseLabels[target] : 'next phase';
+}
+
+function PhaseConfirmation({ currentPhase, busy, onCancel, onConfirm }: {
+  currentPhase: string;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const targetLabel = nextPhaseLabel(currentPhase);
+  const actionLabel = targetLabel === phaseLabels.Closed ? 'Close cycle' : `Open ${targetLabel}`;
+
+  useEffect(() => {
+    cancelButton.current?.focus();
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !busy) onCancel();
+    }
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [busy, onCancel]);
+
+  return <div className="confirmation-backdrop" onMouseDown={(event) => {
+    if (event.target === event.currentTarget && !busy) onCancel();
+  }}>
+    <section className="confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="phase-confirmation-title" aria-describedby="phase-confirmation-copy">
+      <span className="confirmation-icon" aria-hidden="true"><TriangleAlert size={22} /></span>
+      <div>
+        <p className="eyebrow">Irreversible action</p>
+        <h2 id="phase-confirmation-title">{actionLabel}?</h2>
+        <p id="phase-confirmation-copy">Are you sure? This action cannot be undone.</p>
+      </div>
+      <div className="confirmation-actions">
+        <button ref={cancelButton} className="secondary-action" type="button" disabled={busy} onClick={onCancel}>Cancel</button>
+        <button type="button" disabled={busy} onClick={onConfirm}>{actionLabel}<ArrowRight size={17} aria-hidden="true" /></button>
+      </div>
+    </section>
+  </div>;
+}
+
 type NavigationItem = { screen: Screen; label: string; icon: LucideIcon; visible: boolean };
 
 type MemoryCache = {
@@ -165,6 +208,7 @@ export function App() {
   const [scorecardDetail, setScorecardDetail] = useState<ScorecardDetail | null>(null);
   const [strategyReferences, setStrategyReferences] = useState<Array<{ id: string; title: string }>>([]);
   const [actionBusy, setActionBusy] = useState(false);
+  const [phaseConfirmationOpen, setPhaseConfirmationOpen] = useState(false);
   const memoryCache = useRef<MemoryCache>(createMemoryCache());
   const [navigationCollapsed, setNavigationCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -445,6 +489,7 @@ export function App() {
 
   async function advancePhase() {
     if (!cycle) return;
+    setPhaseConfirmationOpen(false);
     setToast(null);
     setScreenBusy('Opening the next phase');
     try {
@@ -569,11 +614,12 @@ export function App() {
               <p>Use any eligible Oracle employee number.</p>
             </div>
             <form className="login-form" onSubmit={login}>
-              <label htmlFor="employee-number">Employee Number</label>
+              <label htmlFor="employee-number">Employee Number <span className="required-mark" aria-hidden="true">*</span></label>
               <div className="input-with-action">
                 <input
                   id="employee-number"
                   name="employeeNumber"
+                  aria-label="Employee Number"
                   value={employeeNumber}
                   onChange={(event) => setEmployeeNumber(event.target.value)}
                   autoComplete="username"
@@ -664,7 +710,10 @@ export function App() {
           <div className="screen-heading"><div><p className="eyebrow">HR control</p><h1 id="phase-title">Phase Control</h1><p>Advance the cycle only after every eligible scorecard completes the current phase.</p></div></div>
           {screenBusy && <RequestLoader title={screenBusy} />}
           {cycle && <div className="phase-card"><div className="phase-card-top"><dl><div><dt>Cycle</dt><dd>{cycle.name}</dd></div><div><dt>Current phase</dt><dd>{phaseLabels[cycle.current_phase as keyof typeof phaseLabels] ?? readableLabel(cycle.current_phase)}</dd></div><div><dt>Status</dt><dd><span className="status-chip">{readableLabel(cycle.status)}</span></dd></div></dl>
-            {cycle.current_phase !== 'Closed' && <button type="button" onClick={advancePhase} disabled={Boolean(screenBusy)}>Open next phase<ArrowRight size={17} aria-hidden="true" /></button>}</div>
+            {cycle.current_phase !== 'Closed' && <div className="phase-action">
+              <button type="button" onClick={() => setPhaseConfirmationOpen(true)} disabled={Boolean(screenBusy) || scorecards.length === 0} title={scorecards.length === 0 ? 'Generate at least one submission before opening the next phase' : undefined}>Open next phase<ArrowRight size={17} aria-hidden="true" /></button>
+              {scorecards.length === 0 && <small>No submissions have been created. <br /> Generate at least one before opening the next phase.</small>}
+            </div>}</div>
             <PhaseSpine activePhase={cycle.current_phase} />
           </div>}
         </section>}
@@ -746,6 +795,7 @@ export function App() {
       </main>
       </div>
       {toast && <Toast toast={toast} />}
+      {phaseConfirmationOpen && cycle && <PhaseConfirmation currentPhase={cycle.current_phase} busy={Boolean(screenBusy)} onCancel={() => setPhaseConfirmationOpen(false)} onConfirm={advancePhase} />}
     </div>
   );
 }

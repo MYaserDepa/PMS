@@ -23,6 +23,14 @@ export class PhaseService {
       }
       if (cycle.current_phase === 'Closed') throw new ApplicationError('The cycle is already closed', 409, 'CYCLE_CLOSED');
       const target = nextPhase[cycle.current_phase];
+      const submission = await client.query('SELECT id FROM scorecards LIMIT 1');
+      if (!submission.rowCount) {
+        throw new ApplicationError(
+          'No PMS submissions have been created. Generate at least one submission before opening the next phase',
+          409,
+          'NO_SUBMISSIONS'
+        );
+      }
       const incomplete = await client.query(
         `SELECT s.id FROM scorecards s
          JOIN scorecard_phase_states p ON p.scorecard_id = s.id AND p.phase = $1

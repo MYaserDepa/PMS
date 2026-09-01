@@ -863,6 +863,22 @@ Goal: let developers rebuild disposable local databases from committed migration
 - [x] Unit tests cover the destructive-operation guards.
 - [x] Backend test, type-check, lint, and build commands pass.
 
+## Milestone 20: form entry and phase safety
+
+Goal: make minimum form requirements visible before submission and protect the irreversible phase transition.
+
+- [x] Show one empty objective on a new DUG or KBU Goal Setting form.
+- [x] Show four empty KPIs on a new Department Head or Project Delivery / Professional Goal Setting form.
+- [x] Mark fields that the current participant must complete with a red asterisk.
+- [x] Ask HR to confirm before opening the next phase and state that the action cannot be undone.
+- [x] Disable phase advance in the UI and reject it in the backend when no PMS submissions exist.
+- [x] Remove overlay padding and backdrop filtering from the phase confirmation to avoid page lag.
+
+### Milestone 20 gate
+
+- [x] Backend API and frontend component tests cover the new defaults, required markers, confirmation, and zero-submission guard.
+- [x] Build, lint, type checks, and the affected browser workflows pass.
+
 ## Dependency summary
 
 1. Milestone 0 establishes the codebase, safe configuration, and test runners.

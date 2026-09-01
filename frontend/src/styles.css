@@ -113,6 +113,8 @@
     @apply text-[0.67rem] font-medium tracking-[0.08em];
   }
 
+  .required-mark { @apply ml-1 text-depa; }
+
   .eyebrow { @apply mb-2 text-[0.67rem] font-extrabold uppercase tracking-[0.18em] text-depa; }
   .eyebrow-light { @apply text-[#f4c8c3]; }
   .brand { @apply flex items-center gap-3 text-white; }
@@ -345,6 +347,19 @@
   .phase-card > .phase-spine li::after { @apply left-6 top-3 h-px w-[calc(100%-0.4rem)] bg-line; }
   .phase-card > .phase-spine .phase-current,
   .phase-card > .phase-spine .phase-complete { @apply text-carbon; }
+  .phase-action { @apply flex max-w-xs flex-col items-end gap-2; }
+  .phase-action small { @apply text-right text-xs leading-5 text-[#8d3638]; }
+
+  .confirmation-backdrop { @apply fixed inset-0 z-[70] grid place-items-center bg-carbon/55; }
+  .confirmation-dialog {
+    @apply grid w-full max-w-lg grid-cols-[2.75rem_1fr] gap-x-4 gap-y-5 rounded-xl border border-[#e7c8c3] bg-white p-5 shadow-[0_24px_70px_rgb(38_35_38_/_28%)];
+    animation: toast-in 160ms ease-out;
+  }
+  .confirmation-icon { @apply grid size-11 place-items-center rounded-full bg-[#fff0ed] text-depa; }
+  .confirmation-dialog .eyebrow { @apply mb-1; }
+  .confirmation-dialog h2 { @apply mb-2; }
+  .confirmation-dialog p:last-child { @apply mb-0 text-sm leading-6 text-slate; }
+  .confirmation-actions { @apply col-span-2 flex flex-wrap justify-end gap-2 border-t border-line pt-4; }
 
   .scorecard-heading { @apply gap-5; }
   .scorecard-context { @apply flex flex-wrap items-center gap-2 text-xs font-semibold text-slate; }
@@ -367,13 +382,13 @@
   .scorecard-fieldset { @apply m-0 grid grid-cols-1 gap-4 rounded-xl border border-line bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-3; }
   .scorecard-fieldset legend { @apply -ml-1 flex items-center gap-2 rounded-md border border-line bg-[#f3f0eb] px-2.5 py-1 text-xs font-extrabold text-carbon; }
   .scorecard-fieldset legend .utility-text { @apply text-depa; }
-  .scorecard-fieldset label { @apply grid content-start; }
+  .scorecard-fieldset label { @apply block; }
   .remove-button { @apply self-end justify-self-start border-[#edc2bd] bg-white text-[#9b292c]; }
   .remove-button:hover:not(:disabled),
   .reject-button:hover:not(:disabled) { @apply border-depa bg-[#fff0ed] text-depa; }
   .add-row-button { @apply justify-self-start border-dashed border-[#bbb3aa] bg-white text-carbon; }
   .development-fields { @apply grid gap-4 p-4 md:grid-cols-2; }
-  .development-fields label { @apply grid; }
+  .development-fields label { @apply block; }
   .workflow-actions {
     @apply overflow-hidden;
     box-shadow: var(--shadow-panel), inset 4px 0 0 var(--color-depa);

@@ -104,6 +104,11 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   });
   await page.getByRole('button', { name: 'Phase Control' }).click();
   await expect(page.getByRole('button', { name: 'Open next phase' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open next phase' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('This action cannot be undone');
+  await expectNoPageOverflow(page);
+  await page.screenshot({ path: 'test-results/visual-review/desktop-phase-confirmation.png', fullPage: true });
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('button', { name: 'Create PMS Submissions' }).click();
   await expect(page.getByRole('status')).toContainText('Loading departments');
   await expect(page.getByLabel('Department')).toHaveValue(/.+/);
@@ -155,6 +160,13 @@ test('capture the desktop and mobile redesign for visual review', async ({ page 
   await expect(page.getByRole('heading', { name: 'Welcome, Hana Admin' })).toBeVisible();
   await expectNoPageOverflow(page);
   await page.screenshot({ path: 'test-results/visual-review/mobile-home.png', fullPage: true });
+
+  await page.getByRole('button', { name: 'Phase Control' }).click();
+  await page.getByRole('button', { name: 'Open next phase' }).click();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await expectNoPageOverflow(page);
+  await page.screenshot({ path: 'test-results/visual-review/mobile-phase-confirmation.png', fullPage: true });
+  await page.getByRole('button', { name: 'Cancel' }).click();
 
   await page.getByRole('button', { name: 'Role Category Mapping' }).click();
   await page.getByLabel('Department').selectOption('Delivery');

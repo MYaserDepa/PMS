@@ -117,17 +117,60 @@ describe('App', () => {
     await waitFor(() => expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/scorecards'))).toHaveLength(1));
 
     fireEvent.click(screen.getByRole('button', { name: 'Phase Control' }));
-    expect(await screen.findByRole('button', { name: 'Open next phase' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Open next phase' })).toBeDisabled();
+    expect(screen.getByText(/No submissions have been created/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Create PMS Submissions' }));
     expect(await screen.findByLabelText('Department')).toHaveValue('Delivery');
     fireEvent.click(screen.getByRole('button', { name: 'Phase Control' }));
-    expect(await screen.findByRole('button', { name: 'Open next phase' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Open next phase' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Create PMS Submissions' }));
     expect(await screen.findByLabelText('Department')).toHaveValue('Delivery');
 
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/cycle'))).toHaveLength(1);
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/hr/departments'))).toHaveLength(1);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('asks for confirmation before opening the next phase', async () => {
+    const user = {
+      employeeNumber: '12245', fullName: 'Hana Admin', department: 'Human Resources',
+      position: 'HR Director',
+      isHrAdmin: true, isItAdmin: false, isManager: false, departmentHeadStatus: 'NotHead'
+    };
+    const scorecards = [{
+      id: '10', employeeNumber: '18001', employeeName: 'Dalia Leader', department: 'Delivery',
+      formType: 'DUGLeadership', currentPhase: 'GoalSetting', status: 'FullyApproved',
+      currentAssigneeEmployeeNumber: null, currentAssigneeName: null, pendingParticipant: null
+    }];
+    let phaseAdvanceCalls = 0;
+    const fetchMock = vi.fn((input: RequestInfo | URL, options?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/auth/session')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ user }) });
+      if (url.endsWith('/cycle')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({
+        cycle: { year: 2027, name: 'PMS 2027', status: 'Active', current_phase: phaseAdvanceCalls ? 'MidYear' : 'GoalSetting' }
+      }) });
+      if (url.endsWith('/scorecards')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ scorecards }) });
+      if (url.endsWith('/hr/phase/advance') && options?.method === 'POST') {
+        phaseAdvanceCalls += 1;
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ currentPhase: 'MidYear', openedScorecards: 1 }) });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Phase Control' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open next phase' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Open Mid-year?' });
+    expect(dialog).toHaveTextContent('Are you sure? This action cannot be undone.');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(phaseAdvanceCalls).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open next phase' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Mid-year' }));
+    await waitFor(() => expect(phaseAdvanceCalls).toBe(1));
+    expect(await screen.findByText('Mid-year opened for 1 scorecards')).toBeInTheDocument();
   });
 
   it('renders the HR Populate preview with form and validation results', async () => {

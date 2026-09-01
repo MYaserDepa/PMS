@@ -52,6 +52,25 @@ describe('the five form renderers', () => {
 });
 
 describe('Goal Setting controls and history', () => {
+  it.each([
+    ['DUGLeadership', 1],
+    ['KBULeadership', 1],
+    ['DepartmentHeadKPI', 4],
+    ['ProjectDeliveryProfessionalKPI', 4]
+  ])('starts a new %s form with its minimum row count', (formType, expectedCount) => {
+    render(<ScorecardView scorecard={detail(formType, { lines: [] })} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
+    expect(screen.getAllByLabelText(/Objective \/ KPI \d+/)).toHaveLength(expectedCount);
+    expect(screen.getByLabelText('Objective / KPI 1')).toHaveValue('');
+  });
+
+  it('marks fields required from the current participant without changing their accessible labels', () => {
+    render(<ScorecardView scorecard={detail('DUGLeadership', { lines: [] })} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
+    const title = screen.getByLabelText('Objective / KPI 1');
+    expect(title).toBeRequired();
+    expect(title.closest('label')).toHaveTextContent('Objective / KPI*');
+    expect(title.closest('label')?.querySelector('.required-mark')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('adds and removes employee rows and keeps the running total visible', async () => {
     render(<ScorecardView scorecard={detail('DUGLeadership')} userEmployeeNumber="18001" strategyReferences={references} busy={false} onAction={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Add row' }));
